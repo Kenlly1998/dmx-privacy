@@ -52,19 +52,72 @@ textarea {
   padding: 2px 4px;
   background: var(--chrome);
   border-bottom: 1px solid var(--border);
+  align-items: center;
 }
 
-.menubar button {
+.menubar .menu {
+  position: relative;
+}
+
+.menubar .menu-root,
+.menubar > button.menu-root {
   background: transparent;
   border: 1px solid transparent;
   padding: 3px 10px;
   cursor: pointer;
 }
 
-.menubar button:hover {
+.menubar .menu:hover .menu-root,
+.menubar .menu-root:hover:not(:disabled) {
   background: var(--menu-hover);
   color: #fff;
   border-color: var(--menu-hover);
+}
+
+.menubar .menu-root:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.menubar .menu-drop {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 180px;
+  background: var(--chrome);
+  border: 1px solid var(--border);
+  z-index: 20;
+  padding: 2px 0;
+}
+
+.menubar .menu:hover .menu-drop {
+  display: block;
+}
+
+.menubar .menu-drop button {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 4px 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.menubar .menu-drop button:hover {
+  background: var(--menu-hover);
+  color: #fff;
+}
+
+.menubar .menu-drop span {
+  color: var(--muted);
+  margin-left: 24px;
+}
+
+.menubar .menu-drop button:hover span {
+  color: #dde;
 }
 
 .menubar .spacer {
@@ -75,6 +128,14 @@ textarea {
   align-self: center;
   color: var(--muted);
   padding-right: 8px;
+}
+
+.help-bar {
+  border-top: 1px solid var(--border);
+  background: #ffffe1;
+  padding: 4px 8px;
+  min-height: 28px;
+  color: #333;
 }
 
 /* Title bar feel */

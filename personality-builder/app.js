@@ -11,31 +11,6 @@
     { id: "S", label: "Special" },
   ];
 
-  const ATTR_CATALOG = [
-    { id: "Dimmer", name: "Dimmer", group: "I", glyph: "DIM" },
-    { id: "Shutter", name: "Shutter", group: "I", glyph: "SHU" },
-    { id: "Pan", name: "Pan", group: "P", glyph: "PAN" },
-    { id: "Tilt", name: "Tilt", group: "P", glyph: "TLT" },
-    { id: "Red", name: "Red", group: "C", glyph: "R" },
-    { id: "Green", name: "Green", group: "C", glyph: "G" },
-    { id: "Blue", name: "Blue", group: "C", glyph: "B" },
-    { id: "White", name: "White", group: "C", glyph: "W" },
-    { id: "Amber", name: "Amber", group: "C", glyph: "A" },
-    { id: "Cyan", name: "Cyan", group: "C", glyph: "C" },
-    { id: "Magenta", name: "Magenta", group: "C", glyph: "M" },
-    { id: "Yellow", name: "Yellow", group: "C", glyph: "Y" },
-    { id: "Colour1", name: "Colour 1", group: "C", glyph: "COL" },
-    { id: "Gobo1", name: "Gobo 1", group: "G", glyph: "GB1" },
-    { id: "Gobo2", name: "Gobo 2", group: "G", glyph: "GB2" },
-    { id: "Zoom", name: "Zoom", group: "B", glyph: "ZOM" },
-    { id: "Focus", name: "Focus", group: "B", glyph: "FCS" },
-    { id: "Iris", name: "Iris", group: "B", glyph: "IRS" },
-    { id: "Prism", name: "Prism", group: "E", glyph: "PRM" },
-    { id: "Frost", name: "Frost", group: "E", glyph: "FRS" },
-    { id: "Control", name: "Control", group: "S", glyph: "CTL" },
-    { id: "Generic1", name: "Generic 1", group: "S", glyph: "G1" },
-  ];
-
   const FUNC_CATALOG = [
     { name: "Dimmer", dmx: "0~255", display: "'%.1f%%',0.0~100.0" },
     { name: "Closed", dmx: "0~9", display: "Closed" },
@@ -53,50 +28,61 @@
     { name: "Rotate CCW", dmx: "192~255", display: "'CCW %.f',0~100" },
   ];
 
-  const MODE_TEMPLATES = [
-    { name: "1ch", channels: 1 },
-    { name: "3ch", channels: 3 },
-    { name: "4ch", channels: 4 },
-    { name: "6ch", channels: 6 },
-    { name: "8ch", channels: 8 },
-    { name: "12ch", channels: 12 },
-    { name: "16ch", channels: 16 },
-    { name: "Standard", channels: 0 },
-    { name: "Extended", channels: 0 },
+  /** Fallback if catalog.json fails to load */
+  let ATTR_CATALOG = [
+    { id: "Dimmer", name: "Dimmer", group: "I", bank: "Intensity", page: "1", wheel: "Dimmer", glyph: "DIM" },
+    { id: "Pan", name: "Pan", group: "P", bank: "Pan", page: "1", wheel: "Pan", glyph: "PAN" },
+    { id: "Tilt", name: "Tilt", group: "P", bank: "Tilt", page: "1", wheel: "Tilt", glyph: "TIL" },
+    { id: "Shutter", name: "Shutter", group: "I", bank: "Intensity", page: "1", wheel: "Wheel 1", glyph: "SHU" },
+    { id: "Red", name: "Red", group: "C", bank: "Colour Mix", page: "1", wheel: "Wheel 1", glyph: "R" },
+    { id: "Green", name: "Green", group: "C", bank: "Colour Mix", page: "1", wheel: "Wheel 2", glyph: "G" },
+    { id: "Blue", name: "Blue", group: "C", bank: "Colour Mix", page: "1", wheel: "Wheel 3", glyph: "B" },
+    { id: "White", name: "White", group: "C", bank: "Colour", page: "1", wheel: "Wheel 3", glyph: "W" },
+    { id: "Control", name: "Control", group: "S", bank: "Control", page: "1", wheel: "Wheel 1", glyph: "CTL" },
   ];
 
-  /** @type {FixtureState} */
+  let MODE_TEMPLATES = [
+    { name: "x DMX, 16bit", channels: 16 },
+    { name: "x DMX, 8bit", channels: 24 },
+    { name: "Mode 1", channels: 24 },
+    { name: "Mode 2", channels: 24 },
+    { name: "Basic", channels: 24 },
+    { name: "Standard", channels: 24 },
+    { name: "Extended", channels: 24 },
+    { name: "4ch", channels: 4 },
+    { name: "8ch", channels: 8 },
+    { name: "12ch", channels: 12 },
+  ];
+
   let state = createEmptyFixture();
   let selection = { kind: "fixture" };
   let catalogTab = "attributes";
   let propsTab = "properties";
   let statusMsg = "Listo.";
-
-  /**
-   * @typedef {{ id: string, name: string, dmx: string, display: string, colour?: string }} Func
-   * @typedef {{ id: string, name: string, group: string, resolution: '8-bit'|'16-bit'|'None', functions: Func[], locate: string }} Attr
-   * @typedef {{ name: string, channels: number, includes: { id: string, channelOffset: string, wheel: string }[] }} Mode
-   * @typedef {{ manufacturer: string, name: string, shortName: string, attributes: Attr[], modes: Mode[] }} FixtureState
-   */
+  let dirty = false;
 
   function createEmptyFixture() {
     return {
-      manufacturer: "Avo",
+      manufacturer: "",
       name: "Fixture 1",
-      shortName: "Fixture1",
+      shortName: "0",
+      personalityVersion: "0",
+      tags: "",
+      updateVersionOnDirty: true,
       attributes: [],
       modes: [],
     };
-  }
-
-  function uid(prefix) {
-    return `${prefix}_${Math.random().toString(36).slice(2, 8)}`;
   }
 
   function setStatus(msg) {
     statusMsg = msg;
     const el = document.getElementById("status-text");
     if (el) el.textContent = msg;
+  }
+
+  function setHelp(text) {
+    const el = document.getElementById("help-bar");
+    if (el) el.textContent = text;
   }
 
   function esc(s) {
@@ -107,12 +93,25 @@
       .replaceAll('"', "&quot;");
   }
 
+  function xmlAttr(s) {
+    return String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+  }
+
   function findAttr(id) {
     return state.attributes.find((a) => a.id === id);
   }
 
   function findMode(name) {
     return state.modes.find((m) => m.name === name);
+  }
+
+  function markDirty() {
+    dirty = true;
+    updateTitle();
   }
 
   function defaultFunctionFor(attrId) {
@@ -136,20 +135,27 @@
   }
 
   function addAttributeFromCatalog(item) {
-    if (state.attributes.some((a) => a.id === item.id)) {
-      setStatus(`El atributo ${item.id} ya existe (ID único).`);
+    const id = item.id;
+    if (state.attributes.some((a) => a.id === id)) {
+      // Allow duplicate visual names with unique instance IDs like Colour1 already used
+      setStatus(`El atributo ID "${id}" ya existe (debe ser único).`);
       return;
     }
     const resolution = item.id === "Pan" || item.id === "Tilt" ? "16-bit" : "8-bit";
     state.attributes.push({
-      id: item.id,
+      id,
       name: item.name,
-      group: item.group,
+      group: item.group || "S",
+      bank: item.bank || "",
+      page: item.page || "1",
+      wheel: item.wheel || "Wheel 1",
       resolution,
-      functions: [defaultFunctionFor(item.id)],
+      functions: [defaultFunctionFor(id)],
       locate: "1:100",
     });
-    selection = { kind: "attribute", id: item.id };
+    selection = { kind: "attribute", id };
+    propsTab = "properties";
+    markDirty();
     setStatus(`Atributo añadido: ${item.name}`);
     render();
   }
@@ -169,6 +175,7 @@
       colour: fn.colour,
     });
     propsTab = "dmx";
+    markDirty();
     setStatus(`Función añadida a ${attr.name}: ${fn.name}`);
     render();
   }
@@ -176,22 +183,22 @@
   function addModeFromTemplate(tpl) {
     let name = tpl.name;
     let n = 2;
-    while (state.modes.some((m) => m.name === name)) {
-      name = `${tpl.name} ${n++}`;
-    }
+    while (state.modes.some((m) => m.name === name)) name = `${tpl.name} ${n++}`;
     state.modes.push({
       name,
-      channels: tpl.channels || state.attributes.filter((a) => a.resolution !== "None").length,
+      channels: tpl.channels || 0,
       includes: [],
     });
     selection = { kind: "mode", name };
+    propsTab = "channels";
+    markDirty();
     setStatus(`Modo creado: ${name}`);
     render();
   }
 
   function addAttrToSelectedMode(attrId) {
     if (selection.kind !== "mode") {
-      setStatus("Selecciona un modo para asignar atributos.");
+      setStatus("Selecciona un Mode para mapear ChannelOffset.");
       return;
     }
     const mode = findMode(selection.name);
@@ -212,10 +219,12 @@
     while (used.has(next)) next++;
     const offset =
       attr.resolution === "16-bit" ? `${next},${next + 1}` : attr.resolution === "None" ? "" : String(next);
-    const wheel =
-      attr.id === "Dimmer" ? "1" : attr.group === "P" ? (attr.id === "Pan" ? "2" : "3") : String(10 + mode.includes.length);
-    mode.includes.push({ id: attrId, channelOffset: offset, wheel });
-    mode.channels = Math.max(
+    mode.includes.push({
+      id: attrId,
+      channelOffset: offset,
+      wheel: attr.wheel || "",
+    });
+    const maxCh = Math.max(
       mode.channels,
       ...mode.includes.flatMap((i) =>
         String(i.channelOffset || "")
@@ -225,7 +234,9 @@
       ),
       0
     );
+    mode.channels = maxCh;
     propsTab = "channels";
+    markDirty();
     setStatus(`${attrId} → modo ${mode.name} @ ${offset || "virtual"}`);
     render();
   }
@@ -234,13 +245,15 @@
     const xml = serializeD4(state);
     const blob = new Blob([xml], { type: "application/xml" });
     const a = document.createElement("a");
-    const safeMan = state.manufacturer.replace(/[^\w\- ]+/g, "").trim() || "Manufacturer";
-    const safeName = state.name.replace(/[^\w\- ]+/g, "").trim() || "Fixture";
+    const safeMan = (state.manufacturer || "Manufacturer").replace(/[^\w\- ]+/g, "").trim();
+    const safeName = (state.name || "Fixture").replace(/[^\w\- ]+/g, "").trim();
     a.href = URL.createObjectURL(blob);
     a.download = `${safeMan}_${safeName}.d4`;
     a.click();
     URL.revokeObjectURL(a.href);
-    setStatus(`Exportado ${a.download}`);
+    dirty = false;
+    updateTitle();
+    setStatus(`Guardado ${a.download}`);
   }
 
   function serializeD4(fx) {
@@ -255,6 +268,8 @@
       today.getFullYear()
     ).slice(2)}`;
     lines.push(`  <History Date="${d}" Author="Personality Builder Replica" Comment="Created" />`);
+    if (fx.tags) lines.push(`  <!-- Tags: ${xmlAttr(fx.tags)} -->`);
+    if (fx.personalityVersion) lines.push(`  <!-- PersonalityVersion: ${xmlAttr(fx.personalityVersion)} -->`);
     lines.push(`  <Manual Filename="" Summary="" />`);
     lines.push(`  <Control>`);
     for (const attr of fx.attributes) {
@@ -262,7 +277,7 @@
       lines.push(`      <Locate Locate="${xmlAttr(attr.locate)}" PowerOn="${xmlAttr(attr.locate)}" />`);
       attr.functions.forEach((fn, idx) => {
         const colour = fn.colour ? ` Colour="${fn.colour}"` : "";
-        const intensity = attr.group === "I" && attr.id === "Dimmer" ? ` Intensity="0~0"` : "";
+        const intensity = attr.id === "Dimmer" ? ` Intensity="0~0"` : "";
         lines.push(
           `      <Function ID="${idx + 1}" Name="${xmlAttr(fn.name)}" Display="${xmlAttr(fn.display)}" Dmx="${xmlAttr(
             fn.dmx
@@ -299,14 +314,6 @@
     return lines.join("\n") + "\n";
   }
 
-  function xmlAttr(s) {
-    return String(s ?? "")
-      .replaceAll("&", "&amp;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;");
-  }
-
   async function importD4(file) {
     const text = await file.text();
     const doc = new DOMParser().parseFromString(text, "application/xml");
@@ -334,10 +341,15 @@
       const locateEl = attrEl.querySelector("Locate");
       const dmxSample = functions[0]?.dmx || "0~255";
       const is16 = dmxSample.split("~").some((v) => Number(v) > 255);
+      const id = attrEl.getAttribute("ID") || `Attr${next.attributes.length + 1}`;
+      const cat = ATTR_CATALOG.find((c) => c.id === id);
       next.attributes.push({
-        id: attrEl.getAttribute("ID") || uid("Attr"),
+        id,
         name: attrEl.getAttribute("Name") || "",
         group: attrEl.getAttribute("Group") || "S",
+        bank: cat?.bank || "",
+        page: cat?.page || "1",
+        wheel: cat?.wheel || "Wheel 1",
         resolution: is16 ? "16-bit" : "8-bit",
         functions,
         locate: locateEl?.getAttribute("Locate") || "1:100",
@@ -357,7 +369,8 @@
     }
     state = next;
     selection = { kind: "fixture" };
-    setStatus(`Importado: ${state.manufacturer} / ${state.name}`);
+    dirty = false;
+    setStatus(`Abierto: ${state.manufacturer} / ${state.name}`);
     render();
   }
 
@@ -366,15 +379,13 @@
     selection = { kind: "fixture" };
     catalogTab = "attributes";
     propsTab = "properties";
+    dirty = false;
     setStatus("Nuevo fixture (File → New).");
     render();
   }
 
   function renderTree() {
     const root = document.getElementById("tree");
-    const attrOpen = selection.kind === "attribute" || selection.kind === "attributes";
-    const modeOpen = selection.kind === "mode" || selection.kind === "modes";
-
     const attrNodes = state.attributes
       .map((a) => {
         const sel = selection.kind === "attribute" && selection.id === a.id ? "selected" : "";
@@ -383,18 +394,16 @@
         )}</div></li>`;
       })
       .join("");
-
     const modeNodes = state.modes
       .map((m) => {
         const sel = selection.kind === "mode" && selection.name === m.name ? "selected" : "";
         const kids = m.includes
-          .map((inc) => {
-            return `<li><div class="node" data-kind="mode-attr" data-mode="${esc(m.name)}" data-id="${esc(
-              inc.id
-            )}"><span class="twist"></span><span class="icon">·</span>${esc(inc.id)} <span style="opacity:.7">@${esc(
-              inc.channelOffset || "virt"
-            )}</span></div></li>`;
-          })
+          .map(
+            (inc) =>
+              `<li><div class="node" data-kind="mode-attr" data-id="${esc(inc.id)}"><span class="twist"></span><span class="icon">·</span>${esc(
+                inc.id
+              )} <span style="opacity:.7">@${esc(inc.channelOffset || "virt")}</span></div></li>`
+          )
           .join("");
         return `<li>
           <div class="node ${sel}" data-kind="mode" data-name="${esc(m.name)}"><span class="twist">▾</span><span class="icon">☰</span>${esc(
@@ -405,25 +414,24 @@
       })
       .join("");
 
+    // Order matches PB 3.4.1: History, Manual, Physical, Attributes, Modes, Macros, Palettes
     root.innerHTML = `
       <li><div class="node ${selection.kind === "fixture" ? "selected" : ""}" data-kind="fixture"><span class="twist">▾</span><span class="icon">💡</span>${esc(
         state.name
       )}</div>
         <ul>
-          <li><div class="node" data-kind="meta"><span class="twist"></span><span class="icon">ℹ</span>History / Manual / Physical</div></li>
+          <li><div class="node" data-kind="history"><span class="twist"></span><span class="icon">🕒</span>History</div></li>
+          <li><div class="node" data-kind="manual"><span class="twist"></span><span class="icon">📄</span>Manual</div></li>
+          <li><div class="node" data-kind="physical"><span class="twist"></span><span class="icon">📐</span>Physical</div></li>
           <li>
-            <div class="node ${selection.kind === "attributes" ? "selected" : ""}" data-kind="attributes"><span class="twist">${
-              attrOpen ? "▾" : "▸"
-            }</span><span class="icon">▤</span>Attributes</div>
+            <div class="node ${selection.kind === "attributes" ? "selected" : ""}" data-kind="attributes"><span class="twist">▾</span><span class="icon">▤</span>Attributes</div>
             <ul>${attrNodes}</ul>
           </li>
-          <li><div class="node" data-kind="macros"><span class="twist"></span><span class="icon">⌘</span>Macros</div></li>
           <li>
-            <div class="node ${selection.kind === "modes" ? "selected" : ""}" data-kind="modes"><span class="twist">${
-              modeOpen ? "▾" : "▸"
-            }</span><span class="icon">☰</span>Modes</div>
+            <div class="node ${selection.kind === "modes" ? "selected" : ""}" data-kind="modes"><span class="twist">▾</span><span class="icon">☰</span>Modes</div>
             <ul>${modeNodes}</ul>
           </li>
+          <li><div class="node" data-kind="macros"><span class="twist"></span><span class="icon">⌘</span>Macros</div></li>
           <li><div class="node" data-kind="palettes"><span class="twist"></span><span class="icon">▣</span>Palettes</div></li>
         </ul>
       </li>`;
@@ -431,19 +439,20 @@
 
   function renderCatalog() {
     const body = document.getElementById("catalog-body");
-    const tabs = document.querySelectorAll("#catalog-tabs button");
-    tabs.forEach((b) => b.classList.toggle("active", b.dataset.tab === catalogTab));
+    document.querySelectorAll("#catalog-tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === catalogTab));
+
+    const stub = (label) => `<p class="empty">${label} — pendiente (réplica MVP). En PB 3.4.1 esta pestaña está presente.</p>`;
 
     if (catalogTab === "attributes") {
       body.innerHTML = `<div class="catalog-grid">${ATTR_CATALOG.map(
         (item) => `
-        <div class="catalog-item" draggable="true" data-type="attr" data-id="${esc(item.id)}">
-          <div class="glyph">${esc(item.glyph)}</div>
+        <div class="catalog-item" draggable="true" data-type="attr" data-id="${esc(item.id)}" title="${esc(item.bank)} / ${esc(item.wheel)}">
+          <div class="glyph">${esc(item.glyph || item.name.slice(0, 3).toUpperCase())}</div>
           <div class="label">${esc(item.name)}</div>
           <button type="button" class="add-btn" data-add>+</button>
         </div>`
       ).join("")}</div>
-      <p class="empty">Clic en + / doble clic / arrastra al árbol para añadir.</p>`;
+      <p class="empty">Catálogo alineado a PB 3.4.1 (${ATTR_CATALOG.length} attrs). Clic + para añadir.</p>`;
     } else if (catalogTab === "functions") {
       body.innerHTML = `<div class="catalog-grid">${FUNC_CATALOG.map(
         (fn, i) => `
@@ -452,8 +461,7 @@
           <div class="label">${esc(fn.name)}</div>
           <button type="button" class="add-btn" data-add>+</button>
         </div>`
-      ).join("")}</div>
-      <p class="empty">Selecciona un atributo y pulsa + para añadir la función.</p>`;
+      ).join("")}</div>`;
     } else if (catalogTab === "created") {
       body.innerHTML = state.attributes.length
         ? `<div class="catalog-grid">${state.attributes
@@ -466,7 +474,7 @@
           </div>`
             )
             .join("")}</div>
-          <p class="empty">Con un Mode seleccionado, pulsa + para mapear ChannelOffset.</p>`
+          <p class="empty">Con un Mode seleccionado, + mapea ChannelOffset.</p>`
         : `<p class="empty">Aún no hay atributos creados.</p>`;
     } else if (catalogTab === "modes") {
       body.innerHTML = `<div class="catalog-grid">${MODE_TEMPLATES.map(
@@ -476,50 +484,48 @@
           <div class="label">${esc(m.name)}</div>
           <button type="button" class="add-btn" data-add>+</button>
         </div>`
-      ).join("")}</div>
-      <p class="empty">Pulsa + para crear un modo; luego Created Attributes → +.</p>`;
-    }
+      ).join("")}</div>`;
+    } else if (catalogTab === "current") body.innerHTML = stub("Current Functions");
+    else if (catalogTab === "history") body.innerHTML = stub("History");
+    else if (catalogTab === "macros") body.innerHTML = stub("Macros");
+    else if (catalogTab === "palettes") body.innerHTML = stub("Palettes");
+    else if (catalogTab === "swatch") body.innerHTML = stub("Swatch");
   }
 
   function renderProps() {
     const body = document.getElementById("props-body");
-    const tabs = document.querySelectorAll("#props-tabs button");
-    tabs.forEach((b) => b.classList.toggle("active", b.dataset.tab === propsTab));
+    document.querySelectorAll("#props-tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === propsTab));
 
-    if (propsTab === "properties") {
-      body.innerHTML = renderPropertiesTab();
-      return;
-    }
-    if (propsTab === "dmx") {
-      body.innerHTML = renderDmxTab();
-      return;
-    }
-    if (propsTab === "channels") {
-      body.innerHTML = renderChannelsTab();
-      return;
-    }
-    if (propsTab === "wheels") {
-      body.innerHTML = renderWheelsTab();
-      return;
-    }
-    if (propsTab === "locate") {
-      body.innerHTML = renderLocateTab();
-    }
+    if (propsTab === "properties") body.innerHTML = renderPropertiesTab();
+    else if (propsTab === "dmx") body.innerHTML = renderDmxTab();
+    else if (propsTab === "channels") body.innerHTML = renderChannelsTab();
+    else if (propsTab === "wheels") body.innerHTML = renderWheelsTab();
+    else if (propsTab === "locate") body.innerHTML = renderLocateTab();
+    else if (propsTab === "cells") body.innerHTML = `<p class="empty">Cells — presente en PB 3.4.1; pendiente en la réplica MVP.</p>`;
   }
 
   function renderPropertiesTab() {
-    if (selection.kind === "fixture" || selection.kind === "meta") {
+    if (selection.kind === "fixture") {
+      setHelp("Name: Name of this fixture.");
       return `
         <table class="prop-grid">
           <tr><th colspan="2">Fixture</th></tr>
+          <tr><td class="label">Display Name</td><td><input id="p-short" maxlength="10" value="${esc(state.shortName)}" /></td></tr>
           <tr><td class="label">Manufacturer</td><td><input id="p-man" value="${esc(state.manufacturer)}" /></td></tr>
           <tr><td class="label">Name</td><td><input id="p-name" value="${esc(state.name)}" /></td></tr>
-          <tr><td class="label">Display Name</td><td><input id="p-short" maxlength="10" value="${esc(state.shortName)}" /></td></tr>
+          <tr><td class="label">Personality Version</td><td><input id="p-ver" value="${esc(state.personalityVersion)}" /></td></tr>
+          <tr><td class="label">Tags</td><td><input id="p-tags" value="${esc(state.tags)}" /></td></tr>
+          <tr><th colspan="2">Misc</th></tr>
+          <tr><td class="label">UpdateVersionOnDirty</td><td>
+            <select id="p-dirty"><option value="true" ${state.updateVersionOnDirty ? "selected" : ""}>True</option>
+            <option value="false" ${!state.updateVersionOnDirty ? "selected" : ""}>False</option></select>
+          </td></tr>
         </table>`;
     }
     if (selection.kind === "attribute") {
       const a = findAttr(selection.id);
       if (!a) return `<p class="empty">Atributo no encontrado.</p>`;
+      setHelp("Attribute ID: Unique identifier used by Titan (shapes, colour pickers, HTP).");
       return `
         <table class="prop-grid">
           <tr><th colspan="2">Attribute Properties</th></tr>
@@ -531,40 +537,44 @@
             ).join("")}</select>
           </td></tr>
           <tr><td class="label">Maximum Resolution</td><td>
-            <select id="p-res">
-              ${["8-bit", "16-bit", "None"]
-                .map((r) => `<option value="${r}" ${r === a.resolution ? "selected" : ""}>${r}</option>`)
-                .join("")}
-            </select>
+            <select id="p-res">${["8-bit", "16-bit", "None"]
+              .map((r) => `<option value="${r}" ${r === a.resolution ? "selected" : ""}>${r}</option>`)
+              .join("")}</select>
           </td></tr>
+          <tr><th colspan="2">Diamond/Pearl Mapping</th></tr>
+          <tr><td class="label">Bank</td><td><input id="p-bank" value="${esc(a.bank)}" /></td></tr>
+          <tr><td class="label">Page</td><td><input id="p-page" value="${esc(a.page)}" /></td></tr>
+          <tr><td class="label">Wheel</td><td><input id="p-wheel" value="${esc(a.wheel)}" /></td></tr>
         </table>`;
     }
     if (selection.kind === "mode") {
       const m = findMode(selection.name);
-      if (!m) return `<p class="empty">Modo no encontrado.</p>`;
+      if (!m) return "";
+      setHelp("Mode: DMX personality mode (channel count and attribute map).");
       return `
         <table class="prop-grid">
           <tr><th colspan="2">Mode</th></tr>
           <tr><td class="label">Name</td><td><input id="p-mname" value="${esc(m.name)}" /></td></tr>
           <tr><td class="label">Channels</td><td><input id="p-mch" type="number" min="0" value="${m.channels}" /></td></tr>
-        </table>
-        <p class="empty">Usa la pestaña Channels / Created Attributes para el patch.</p>`;
+        </table>`;
     }
     if (selection.kind === "attributes") {
-      return `<p class="empty">Elige atributos en el catálogo (doble clic) para añadirlos al fixture.</p>`;
+      setHelp("Add attributes from the Attributes catalog.");
+      return `<p class="empty">Elige atributos en el catálogo (+).</p>`;
     }
     if (selection.kind === "modes") {
-      return `<p class="empty">Elige una plantilla de Modes en el catálogo (doble clic).</p>`;
+      setHelp("Create a mode from a template, then map Created Attributes.");
+      return `<p class="empty">Elige una plantilla de Modes (+).</p>`;
     }
-    return `<p class="empty">Selecciona un nodo en Navigation Pane.</p>`;
+    setHelp("");
+    return `<p class="empty">Nodo pendiente en la réplica MVP.</p>`;
   }
 
   function renderDmxTab() {
-    if (selection.kind !== "attribute") {
-      return `<p class="empty">Selecciona un atributo para editar DMX Values.</p>`;
-    }
+    if (selection.kind !== "attribute") return `<p class="empty">Selecciona un atributo para editar DMX Values.</p>`;
     const a = findAttr(selection.id);
     if (!a) return "";
+    setHelp("DMX Values: function ranges for this attribute.");
     const rows = a.functions
       .map(
         (fn, i) => `
@@ -588,14 +598,11 @@
   }
 
   function renderChannelsTab() {
-    if (selection.kind !== "mode") {
-      return `<p class="empty">Selecciona un Mode para ver ChannelOffset.</p>`;
-    }
+    if (selection.kind !== "mode") return `<p class="empty">Selecciona un Mode para ver Channels.</p>`;
     const m = findMode(selection.name);
     if (!m) return "";
-    if (!m.includes.length) {
-      return `<p class="empty">Arrastra Created Attributes al modo (o doble clic con el modo seleccionado).</p>`;
-    }
+    setHelp("Channels: ChannelOffset and wheel assignment per attribute in this mode.");
+    if (!m.includes.length) return `<p class="empty">Pulsa + en Created Attributes con este modo seleccionado.</p>`;
     const rows = m.includes
       .map(
         (inc, i) => `
@@ -614,73 +621,69 @@
   }
 
   function renderWheelsTab() {
-    const mode =
-      selection.kind === "mode" ? findMode(selection.name) : state.modes[0];
+    const mode = selection.kind === "mode" ? findMode(selection.name) : state.modes[0];
     if (!mode) return `<p class="empty">Crea un modo primero.</p>`;
+    setHelp("Wheel Mapping: encoder layout (simplified MVP).");
     const slots = { 1: [], 2: [], 3: [] };
     for (const inc of mode.includes) {
-      const w = Number(inc.wheel);
-      const page = w >= 1 && w <= 3 ? w : ((w - 1) % 3) + 1;
-      if (!slots[page]) slots[page] = [];
+      const label = String(inc.wheel || "");
+      let page = 1;
+      if (/Wheel\s*2/i.test(label)) page = 2;
+      else if (/Wheel\s*3/i.test(label)) page = 3;
+      else if (label === "Pan") page = 2;
+      else if (label === "Tilt") page = 3;
       slots[page].push(inc.id);
     }
     return `<div class="wheel-board">
       ${[1, 2, 3]
         .map(
-          (n) => `<div class="wheel-slot"><h4>Wheel ${n} (page)</h4>${
-            (slots[n] || []).map((id) => `<span class="wheel-chip">${esc(id)}</span>`).join("") ||
-            '<span class="empty">vacío</span>'
+          (n) => `<div class="wheel-slot"><h4>Wheel ${n}</h4>${
+            slots[n].map((id) => `<span class="wheel-chip">${esc(id)}</span>`).join("") || '<span class="empty">vacío</span>'
           }</div>`
         )
         .join("")}
     </div>
-    <p class="empty">Modo: ${esc(mode.name)}. Mapeo simplificado (réplica MVP).</p>`;
+    <p class="empty">Modo: ${esc(mode.name)}</p>`;
   }
 
   function renderLocateTab() {
     if (!state.attributes.length) return `<p class="empty">Sin atributos.</p>`;
+    setHelp("Locate Values: state when Locate is pressed on the console.");
     const rows = state.attributes
-      .map(
-        (a) => `
-      <tr>
-        <td>${esc(a.name)}</td>
-        <td><input data-loc-id="${esc(a.id)}" value="${esc(a.locate)}" /></td>
-      </tr>`
-      )
+      .map((a) => `<tr><td>${esc(a.name)}</td><td><input data-loc-id="${esc(a.id)}" value="${esc(a.locate)}" /></td></tr>`)
       .join("");
     return `<table class="dmx-table"><thead><tr><th>Attribute</th><th>Locate (fn:percent)</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
   function bindPropsHandlers() {
-    const syncFixtureFields = () => {
+    const syncFixture = () => {
       const man = document.getElementById("p-man");
       const name = document.getElementById("p-name");
       const short = document.getElementById("p-short");
+      const ver = document.getElementById("p-ver");
+      const tags = document.getElementById("p-tags");
+      const dirtySel = document.getElementById("p-dirty");
       if (man) state.manufacturer = man.value;
-      if (name) {
-        state.name = name.value;
-        if (short && !short.dataset.touched) {
-          state.shortName = state.name.slice(0, 10);
-          short.value = state.shortName;
-        }
-      }
+      if (name) state.name = name.value;
       if (short) state.shortName = short.value.slice(0, 10);
+      if (ver) state.personalityVersion = ver.value;
+      if (tags) state.tags = tags.value;
+      if (dirtySel) state.updateVersionOnDirty = dirtySel.value === "true";
+      markDirty();
       renderTree();
       updateTitle();
     };
-    ["p-man", "p-name", "p-short"].forEach((id) => {
+    ["p-man", "p-name", "p-short", "p-ver", "p-tags", "p-dirty"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
-      el.addEventListener("input", () => {
-        if (id === "p-short") el.dataset.touched = "1";
-        syncFixtureFields();
-      });
-      el.addEventListener("change", syncFixtureFields);
+      el.addEventListener("input", syncFixture);
+      el.addEventListener("change", syncFixture);
     });
-    const aid = document.getElementById("p-aid");
-    if (aid && selection.kind === "attribute") {
+
+    if (selection.kind === "attribute") {
       const oldId = selection.id;
-      aid.addEventListener("change", () => {
+      const aid = document.getElementById("p-aid");
+      aid?.addEventListener("change", () => {
         const attr = findAttr(oldId);
         if (!attr) return;
         const neu = aid.value.trim();
@@ -690,53 +693,45 @@
           return;
         }
         attr.id = neu;
-        for (const m of state.modes) {
-          for (const inc of m.includes) if (inc.id === oldId) inc.id = neu;
-        }
+        for (const m of state.modes) for (const inc of m.includes) if (inc.id === oldId) inc.id = neu;
         selection = { kind: "attribute", id: neu };
+        markDirty();
         render();
       });
+      const bindAttr = (id, key) => {
+        const el = document.getElementById(id);
+        el?.addEventListener("change", () => {
+          const attr = findAttr(selection.id);
+          if (!attr) return;
+          attr[key] = el.value;
+          markDirty();
+          if (key === "name") renderTree();
+        });
+      };
+      bindAttr("p-aname", "name");
+      bindAttr("p-group", "group");
+      bindAttr("p-res", "resolution");
+      bindAttr("p-bank", "bank");
+      bindAttr("p-page", "page");
+      bindAttr("p-wheel", "wheel");
     }
-    const aname = document.getElementById("p-aname");
-    if (aname && selection.kind === "attribute") {
-      aname.addEventListener("change", () => {
-        const attr = findAttr(selection.id);
-        if (attr) {
-          attr.name = aname.value;
-          renderTree();
-        }
-      });
-    }
-    const group = document.getElementById("p-group");
-    if (group && selection.kind === "attribute") {
-      group.addEventListener("change", () => {
-        const attr = findAttr(selection.id);
-        if (attr) attr.group = group.value;
-      });
-    }
-    const res = document.getElementById("p-res");
-    if (res && selection.kind === "attribute") {
-      res.addEventListener("change", () => {
-        const attr = findAttr(selection.id);
-        if (attr) attr.resolution = res.value;
-      });
-    }
-    const mname = document.getElementById("p-mname");
-    if (mname && selection.kind === "mode") {
+
+    if (selection.kind === "mode") {
       const old = selection.name;
-      mname.addEventListener("change", () => {
+      document.getElementById("p-mname")?.addEventListener("change", (e) => {
         const mode = findMode(old);
         if (!mode) return;
-        mode.name = mname.value;
+        mode.name = e.target.value;
         selection = { kind: "mode", name: mode.name };
+        markDirty();
         render();
       });
-    }
-    const mch = document.getElementById("p-mch");
-    if (mch && selection.kind === "mode") {
-      mch.addEventListener("change", () => {
+      document.getElementById("p-mch")?.addEventListener("change", (e) => {
         const mode = findMode(selection.name);
-        if (mode) mode.channels = Number(mch.value) || 0;
+        if (mode) {
+          mode.channels = Number(e.target.value) || 0;
+          markDirty();
+        }
       });
     }
 
@@ -747,33 +742,30 @@
         const i = Number(input.dataset.dmxI);
         const fn = attr.functions[i];
         if (!fn) return;
-        const field = input.dataset.f;
-        if (field === "name") fn.name = input.value;
-        if (field === "display") fn.display = input.value;
-        if (field === "start" || field === "end") {
+        if (input.dataset.f === "name") fn.name = input.value;
+        if (input.dataset.f === "display") fn.display = input.value;
+        if (input.dataset.f === "start" || input.dataset.f === "end") {
           const start = document.querySelector(`[data-dmx-i="${i}"][data-f="start"]`)?.value || "0";
           const end = document.querySelector(`[data-dmx-i="${i}"][data-f="end"]`)?.value || "255";
           fn.dmx = `${start}~${end}`;
         }
+        markDirty();
       });
     });
 
     document.getElementById("btn-add-fn")?.addEventListener("click", () => {
       const attr = findAttr(selection.id);
       if (!attr) return;
-      attr.functions.push({
-        id: String(attr.functions.length + 1),
-        name: "Raw DMX",
-        dmx: "0~255",
-        display: "'Raw DMX %.f',0~255",
-      });
+      attr.functions.push({ id: String(attr.functions.length + 1), name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255" });
+      markDirty();
       renderProps();
       bindPropsHandlers();
     });
     document.getElementById("btn-del-fn")?.addEventListener("click", () => {
       const attr = findAttr(selection.id);
-      if (!attr || !attr.functions.length) return;
+      if (!attr?.functions.length) return;
       attr.functions.pop();
+      markDirty();
       renderProps();
       bindPropsHandlers();
     });
@@ -782,11 +774,11 @@
       input.addEventListener("change", () => {
         const mode = findMode(selection.name);
         if (!mode) return;
-        const i = Number(input.dataset.chI);
-        const inc = mode.includes[i];
+        const inc = mode.includes[Number(input.dataset.chI)];
         if (!inc) return;
         if (input.dataset.f === "offset") inc.channelOffset = input.value;
         if (input.dataset.f === "wheel") inc.wheel = input.value;
+        markDirty();
         renderTree();
       });
     });
@@ -794,13 +786,19 @@
     document.querySelectorAll("[data-loc-id]").forEach((input) => {
       input.addEventListener("change", () => {
         const attr = findAttr(input.dataset.locId);
-        if (attr) attr.locate = input.value;
+        if (attr) {
+          attr.locate = input.value;
+          markDirty();
+        }
       });
     });
   }
 
   function updateTitle() {
-    document.getElementById("title-fixture").textContent = `${state.manufacturer} — ${state.name}`;
+    const star = dirty ? " *" : "";
+    const label = state.manufacturer ? `${state.manufacturer} — ${state.name}` : state.name;
+    document.getElementById("title-fixture").textContent = `${label}${star}`;
+    document.title = `${state.name}${star} - Personality Builder Replica`;
   }
 
   function render() {
@@ -817,22 +815,22 @@
     const node = e.target.closest(".node");
     if (!node) return;
     const kind = node.dataset.kind;
-    if (kind === "fixture" || kind === "meta") selection = { kind: "fixture" };
+    if (kind === "fixture") selection = { kind: "fixture" };
     else if (kind === "attributes") {
       selection = { kind: "attributes" };
       catalogTab = "attributes";
-    } else if (kind === "attribute") selection = { kind: "attribute", id: node.dataset.id };
+    } else if (kind === "attribute" || kind === "mode-attr") selection = { kind: "attribute", id: node.dataset.id };
     else if (kind === "modes") {
       selection = { kind: "modes" };
       catalogTab = "modes";
     } else if (kind === "mode") selection = { kind: "mode", name: node.dataset.name };
-    else if (kind === "mode-attr") selection = { kind: "attribute", id: node.dataset.id };
-    else if (kind === "macros" || kind === "palettes") {
-      setStatus(`${kind}: pendiente en MVP (réplica).`);
+    else {
+      setStatus(`${kind}: pendiente en MVP (existe en PB 3.4.1).`);
       return;
     }
-    if (kind === "attribute") propsTab = "properties";
+    if (kind === "attribute" || kind === "mode-attr") propsTab = "properties";
     if (kind === "mode") propsTab = "channels";
+    if (kind === "fixture") propsTab = "properties";
     render();
   }
 
@@ -841,19 +839,14 @@
     if (item.dataset.type === "attr") {
       const cat = ATTR_CATALOG.find((a) => a.id === item.dataset.id);
       if (cat) addAttributeFromCatalog(cat);
-    } else if (item.dataset.type === "func") {
-      addFunctionToSelected(FUNC_CATALOG[Number(item.dataset.index)]);
-    } else if (item.dataset.type === "mode-tpl") {
-      addModeFromTemplate(MODE_TEMPLATES[Number(item.dataset.index)]);
-    } else if (item.dataset.type === "created") {
-      addAttrToSelectedMode(item.dataset.id);
-    }
+    } else if (item.dataset.type === "func") addFunctionToSelected(FUNC_CATALOG[Number(item.dataset.index)]);
+    else if (item.dataset.type === "mode-tpl") addModeFromTemplate(MODE_TEMPLATES[Number(item.dataset.index)]);
+    else if (item.dataset.type === "created") addAttrToSelectedMode(item.dataset.id);
   }
 
   function onCatalogActivate(e) {
     const item = e.target.closest(".catalog-item");
     if (!item) return;
-    // Prefer explicit add control; otherwise dblclick / Enter
     if (e.type === "click" && e.target.closest("[data-add]")) {
       activateCatalogItem(item);
       return;
@@ -882,13 +875,27 @@
 
     document.getElementById("btn-new").addEventListener("click", newFixture);
     document.getElementById("btn-export").addEventListener("click", exportD4);
-    document.getElementById("btn-import").addEventListener("click", () => {
-      document.getElementById("file-import").click();
-    });
+    document.getElementById("btn-import").addEventListener("click", () => document.getElementById("file-import").click());
     document.getElementById("file-import").addEventListener("change", (e) => {
       const file = e.target.files?.[0];
       if (file) importD4(file);
       e.target.value = "";
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        exportD4();
+      }
+      if (e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        newFixture();
+      }
+      if (e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        document.getElementById("file-import").click();
+      }
     });
 
     document.getElementById("catalog-body").addEventListener("dragstart", (e) => {
@@ -896,11 +903,7 @@
       if (!item) return;
       e.dataTransfer.setData(
         "text/plain",
-        JSON.stringify({
-          type: item.dataset.type,
-          id: item.dataset.id,
-          index: item.dataset.index,
-        })
+        JSON.stringify({ type: item.dataset.type, id: item.dataset.id, index: item.dataset.index })
       );
     });
 
@@ -922,16 +925,28 @@
     });
   }
 
-  // Demo seed matching Quick Start spirit
-  function seedDemo() {
-    state = createEmptyFixture();
-    state.manufacturer = "Avo";
-    state.name = "1200 Wash";
-    state.shortName = "1200 Wash";
-    selection = { kind: "fixture" };
+  async function boot() {
+    try {
+      const res = await fetch("catalog.json");
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.attributes) && data.attributes.length) ATTR_CATALOG = data.attributes;
+        if (Array.isArray(data.modes) && data.modes.length) {
+          MODE_TEMPLATES = [
+            ...data.modes.map((m) => ({ name: m.name, channels: Number(m.channels) || 0 })),
+            { name: "4ch", channels: 4 },
+            { name: "8ch", channels: 8 },
+            { name: "12ch", channels: 12 },
+          ];
+        }
+        setStatus(`Catálogo PB cargado (${ATTR_CATALOG.length} atributos).`);
+      }
+    } catch {
+      setStatus("Usando catálogo embebido (catalog.json no disponible).");
+    }
+    wire();
+    render();
   }
 
-  seedDemo();
-  wire();
-  render();
+  boot();
 })();

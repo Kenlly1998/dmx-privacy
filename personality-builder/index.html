@@ -14,12 +14,21 @@
     </div>
 
     <div class="menubar">
-      <button type="button" id="btn-new" title="File → New">New</button>
-      <button type="button" id="btn-import" title="Abrir .d4">Open…</button>
-      <button type="button" id="btn-export" title="Guardar .d4">Save .d4</button>
+      <div class="menu">
+        <button type="button" class="menu-root">File</button>
+        <div class="menu-drop">
+          <button type="button" id="btn-new">New<span>Ctrl+N</span></button>
+          <button type="button" id="btn-import">Open…<span>Ctrl+O</span></button>
+          <button type="button" id="btn-export">Save .d4<span>Ctrl+S</span></button>
+        </div>
+      </div>
+      <button type="button" class="menu-root" disabled title="MVP">Edit</button>
+      <button type="button" class="menu-root" disabled title="MVP">View</button>
+      <button type="button" class="menu-root" disabled title="MVP">Tools</button>
+      <button type="button" class="menu-root" disabled title="MVP">Help</button>
       <input type="file" id="file-import" accept=".d4,.xml,text/xml" class="hidden" />
       <div class="spacer"></div>
-      <span class="badge">Réplica independiente · compatible .d4 (MVP)</span>
+      <span class="badge">Alineado a PB 3.4.1 (Wine) · .d4 MVP</span>
     </div>
 
     <div class="workspace">
@@ -36,7 +45,12 @@
           <button type="button" data-tab="attributes" class="active">Attributes</button>
           <button type="button" data-tab="functions">Functions</button>
           <button type="button" data-tab="created">Created Attributes</button>
+          <button type="button" data-tab="current">Current Functions</button>
+          <button type="button" data-tab="history">History</button>
           <button type="button" data-tab="modes">Modes</button>
+          <button type="button" data-tab="macros">Macros</button>
+          <button type="button" data-tab="palettes">Palettes</button>
+          <button type="button" data-tab="swatch">Swatch</button>
         </div>
         <div class="pane-body" id="catalog-body"></div>
       </section>
@@ -49,8 +63,10 @@
           <button type="button" data-tab="channels">Channels</button>
           <button type="button" data-tab="wheels">Wheel Mapping</button>
           <button type="button" data-tab="locate">Locate Values</button>
+          <button type="button" data-tab="cells">Cells</button>
         </div>
         <div class="pane-body" id="props-body"></div>
+        <div class="help-bar" id="help-bar">Name: Name of this fixture.</div>
       </section>
     </div>
 
