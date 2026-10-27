@@ -30,6 +30,12 @@ Luego visita `http://localhost:8765/`.
 
 `samples/Demo_RGBWash.d4` — fixture demo propio (no es librería Avolites). Usa **Open…** para cargarlo.
 
+## Tools
+
+- **Mode-first from channels…** — pegas `ch,Atributo[,8|16]` y crea attributes + mode con offsets.
+- **Import channel table…** — CSV/TSV del manual (o pegar texto).
+- **Run linter** — IDs, solapes/huecos DMX, Locate, patch duplicado, celdas.
+
 ## Cells (cuadrícula)
 
 En un **Mode** → pestaña **Cells**:

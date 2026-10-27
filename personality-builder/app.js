@@ -191,6 +191,293 @@
   function markDirty() {
     dirty = true;
     updateTitle();
+    scheduleLint();
+  }
+
+  let lintTimer = null;
+  function scheduleLint() {
+    clearTimeout(lintTimer);
+    lintTimer = setTimeout(() => renderLint(runLinter()), 120);
+  }
+
+  function guessCatalogMatch(name) {
+    const n = String(name || "").trim().toLowerCase();
+    if (!n) return null;
+    const exact = ATTR_CATALOG.find((a) => a.id.toLowerCase() === n || a.name.toLowerCase() === n);
+    if (exact) return exact;
+    const fuzzy = ATTR_CATALOG.find(
+      (a) => a.name.toLowerCase().includes(n) || n.includes(a.name.toLowerCase()) || a.id.toLowerCase().includes(n)
+    );
+    return fuzzy || null;
+  }
+
+  function uniqueAttrId(base) {
+    let id = String(base || "Generic").replace(/\s+/g, "");
+    if (!id) id = "Generic";
+    if (!state.attributes.some((a) => a.id === id)) return id;
+    let i = 2;
+    while (state.attributes.some((a) => a.id === `${id}${i}`)) i++;
+    return `${id}${i}`;
+  }
+
+  function ensureAttributeStub(name, resolution) {
+    const cat = guessCatalogMatch(name);
+    const baseId = cat?.id || String(name).replace(/\s+/g, "") || "Generic";
+    const existing = state.attributes.find(
+      (a) => a.id === baseId || a.name.toLowerCase() === String(name).toLowerCase()
+    );
+    if (existing) {
+      if (resolution && existing.resolution !== resolution) existing.resolution = resolution;
+      return existing;
+    }
+    const id = state.attributes.some((a) => a.id === baseId) ? uniqueAttrId(baseId) : baseId;
+    const attr = {
+      id,
+      name: cat?.name || name,
+      group: cat?.group || "S",
+      bank: cat?.bank || "",
+      page: cat?.page || "1",
+      wheel: cat?.wheel || "Wheel 1",
+      resolution: resolution || (id === "Pan" || id === "Tilt" ? "16-bit" : "8-bit"),
+      functions: [defaultFunctionFor(id)],
+      locate: "1:100",
+    };
+    state.attributes.push(attr);
+    return attr;
+  }
+
+  /**
+   * Parse lines like:
+   * 1,Dimmer,8
+   * 2 Red 8
+   * Dimmer
+   * 5,Pan,16
+   */
+  function parseChannelLines(text) {
+    const rows = [];
+    const lines = String(text || "")
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith("#"));
+    let autoCh = 1;
+    for (const line of lines) {
+      let parts = line.includes("\t") ? line.split("\t") : line.split(/[,;|]/);
+      parts = parts.map((p) => p.trim()).filter(Boolean);
+      if (parts.length === 1 && /^(ch|channel|canal)$/i.test(parts[0])) continue;
+      if (parts.length >= 2 && /^(ch|channel|canal)$/i.test(parts[0]) && /attr/i.test(parts[1])) continue;
+
+      let ch = null;
+      let name = null;
+      let res = null;
+      let functionsHint = null;
+
+      if (/^\d+$/.test(parts[0])) {
+        ch = Number(parts[0]);
+        name = parts[1] || `Channel${ch}`;
+        res = parts[2];
+        functionsHint = parts[3];
+      } else {
+        name = parts[0];
+        res = parts[1];
+        functionsHint = parts[2];
+        ch = autoCh;
+      }
+
+      let resolution = "8-bit";
+      if (res) {
+        if (/16/.test(res)) resolution = "16-bit";
+        else if (/none|virt/i.test(res)) resolution = "None";
+        else resolution = "8-bit";
+      } else if (/pan|tilt/i.test(name)) resolution = "16-bit";
+
+      const width = resolution === "16-bit" ? 2 : resolution === "None" ? 0 : 1;
+      rows.push({ channel: ch, name, resolution, width, functionsHint });
+      autoCh = ch + Math.max(width, 1);
+    }
+    return rows;
+  }
+
+  function applyChannelRows(rows, modeName) {
+    if (!rows.length) {
+      setStatus("No hay canales para crear.");
+      return null;
+    }
+    let name = modeName || "Mode 1";
+    let n = 2;
+    while (state.modes.some((m) => m.name === name)) name = `${modeName || "Mode"} ${n++}`;
+
+    const mode = {
+      name,
+      channels: 0,
+      includes: [],
+      cells: createEmptyCells(),
+    };
+
+    let cursor = Math.min(...rows.map((r) => r.channel));
+    for (const row of rows) {
+      const attr = ensureAttributeStub(row.name, row.resolution);
+      if (row.functionsHint) {
+        const fn = parseFunctionHint(row.functionsHint);
+        if (fn) attr.functions = [fn];
+      }
+      let offset = "";
+      if (row.resolution !== "None") {
+        const start = row.channel || cursor;
+        offset = row.resolution === "16-bit" ? `${start},${start + 1}` : String(start);
+        cursor = start + (row.resolution === "16-bit" ? 2 : 1);
+      }
+      if (!mode.includes.some((i) => i.id === attr.id)) {
+        mode.includes.push({ id: attr.id, channelOffset: offset, wheel: attr.wheel || "" });
+      }
+    }
+    mode.channels = Math.max(
+      0,
+      ...mode.includes.flatMap((i) =>
+        String(i.channelOffset || "")
+          .split(",")
+          .map(Number)
+          .filter(Boolean)
+      )
+    );
+    state.modes.push(mode);
+    selection = { kind: "mode", name: mode.name };
+    propsTab = "channels";
+    catalogTab = "created";
+    markDirty();
+    setStatus(`Mode-first: ${mode.name} · ${mode.includes.length} attrs · ${mode.channels} ch`);
+    render();
+    return mode;
+  }
+
+  function parseFunctionHint(hint) {
+    const h = String(hint || "").trim();
+    if (!h) return null;
+    const m = h.match(/^(\d+)\s*[-~–]\s*(\d+)\s*(.*)$/);
+    if (m) {
+      const name = (m[3] || "Range").trim() || "Range";
+      return {
+        id: "1",
+        name,
+        dmx: `${m[1]}~${m[2]}`,
+        display: name,
+      };
+    }
+    return {
+      id: "1",
+      name: h,
+      dmx: "0~255",
+      display: h,
+    };
+  }
+
+  function runLinter() {
+    /** @type {{level:'error'|'warn'|'ok', msg:string}[]} */
+    const issues = [];
+    const ids = new Set();
+    for (const a of state.attributes) {
+      if (!a.id) issues.push({ level: "error", msg: `Atributo sin ID (${a.name}).` });
+      else if (ids.has(a.id)) issues.push({ level: "error", msg: `ID duplicado: ${a.id}.` });
+      else ids.add(a.id);
+      if (!a.functions.length) issues.push({ level: "error", msg: `${a.id}: sin functions.` });
+      else {
+        const ranges = [];
+        for (const fn of a.functions) {
+          const [s, e] = String(fn.dmx || "0~0").split("~").map(Number);
+          if (Number.isNaN(s) || Number.isNaN(e)) {
+            issues.push({ level: "error", msg: `${a.id}/${fn.name}: DMX inválido (${fn.dmx}).` });
+            continue;
+          }
+          const lo = Math.min(s, e);
+          const hi = Math.max(s, e);
+          for (const r of ranges) {
+            if (lo <= r.hi && hi >= r.lo) {
+              issues.push({ level: "error", msg: `${a.id}: solape DMX ${fn.name} con ${r.name}.` });
+            }
+          }
+          ranges.push({ lo, hi, name: fn.name });
+        }
+        ranges.sort((a, b) => a.lo - b.lo);
+        let expect = 0;
+        for (const r of ranges) {
+          if (r.lo > expect) {
+            issues.push({ level: "warn", msg: `${a.id}: hueco DMX ${expect}–${r.lo - 1}.` });
+          }
+          expect = Math.max(expect, r.hi + 1);
+        }
+      }
+      if (!a.locate) issues.push({ level: "warn", msg: `${a.id}: Locate vacío.` });
+      if ((a.id === "Pan" || a.id === "Tilt") && a.resolution !== "16-bit") {
+        issues.push({ level: "warn", msg: `${a.id}: suele ser 16-bit.` });
+      }
+    }
+
+    const hasDimmer = state.attributes.some((a) => a.id === "Dimmer");
+    if (state.attributes.length && !hasDimmer) {
+      issues.push({ level: "warn", msg: "No hay Attribute ID Dimmer (HTP / fader Pearl)." });
+    }
+
+    for (const mode of state.modes) {
+      const used = [];
+      for (const inc of mode.includes) {
+        if (!findAttr(inc.id)) issues.push({ level: "error", msg: `${mode.name}: include desconocido ${inc.id}.` });
+        const parts = String(inc.channelOffset || "")
+          .split(",")
+          .map(Number)
+          .filter((n) => n > 0);
+        if (!parts.length && findAttr(inc.id)?.resolution !== "None") {
+          issues.push({ level: "warn", msg: `${mode.name}/${inc.id}: sin ChannelOffset.` });
+        }
+        for (const p of parts) {
+          if (used.includes(p)) issues.push({ level: "error", msg: `${mode.name}: canal ${p} duplicado.` });
+          used.push(p);
+        }
+      }
+      used.sort((a, b) => a - b);
+      for (let i = 1; i < used.length; i++) {
+        if (used[i] > used[i - 1] + 1) {
+          issues.push({ level: "warn", msg: `${mode.name}: hueco de patch ${used[i - 1] + 1}–${used[i] - 1}.` });
+        }
+      }
+      if (mode.cells?.cells?.length) {
+        const seen = new Set();
+        for (const c of mode.cells.cells) {
+          const key = `${c.x},${c.y}`;
+          if (seen.has(key)) issues.push({ level: "error", msg: `${mode.name}: celda duplicada X/Y ${key}.` });
+          seen.add(key);
+        }
+      }
+    }
+
+    if (!state.attributes.length) issues.push({ level: "warn", msg: "Fixture sin atributos." });
+    if (!state.modes.length) issues.push({ level: "warn", msg: "Fixture sin modes." });
+    if (!issues.length) issues.push({ level: "ok", msg: "Sin problemas detectados." });
+    return issues;
+  }
+
+  function renderLint(issues) {
+    const bar = document.getElementById("lint-bar");
+    if (!bar) return;
+    const errors = issues.filter((i) => i.level === "error").length;
+    const warns = issues.filter((i) => i.level === "warn").length;
+    bar.hidden = false;
+    bar.dataset.level = errors ? "error" : issues.every((i) => i.level === "ok") ? "ok" : "warn";
+    bar.innerHTML = issues
+      .slice(0, 12)
+      .map((i) => `<span class="lint-item ${i.level}">${i.level === "ok" ? "✓" : i.level === "error" ? "●" : "▲"} ${esc(i.msg)}</span>`)
+      .join("");
+    if (issues.length > 12) {
+      bar.innerHTML += `<span class="lint-item warn">… +${issues.length - 12} más</span>`;
+    }
+    if (!errors && !warns) {
+      /* keep ok visible briefly */
+    }
+  }
+
+  function openModal(id) {
+    document.getElementById(id)?.removeAttribute("hidden");
+  }
+  function closeModal(id) {
+    document.getElementById(id)?.setAttribute("hidden", "");
   }
 
   function defaultFunctionFor(attrId) {
@@ -1196,6 +1483,45 @@
       e.target.value = "";
     });
 
+    document.getElementById("btn-mode-first")?.addEventListener("click", () => openModal("modal-mode-first"));
+    document.getElementById("btn-import-table")?.addEventListener("click", () => openModal("modal-import-table"));
+    document.getElementById("btn-run-lint")?.addEventListener("click", () => {
+      const issues = runLinter();
+      renderLint(issues);
+      const err = issues.filter((i) => i.level === "error").length;
+      const warn = issues.filter((i) => i.level === "warn").length;
+      setStatus(err ? `Linter: ${err} errores, ${warn} avisos` : warn ? `Linter: ${warn} avisos` : "Linter OK");
+    });
+
+    document.getElementById("mf-cancel")?.addEventListener("click", () => closeModal("modal-mode-first"));
+    document.getElementById("mf-apply")?.addEventListener("click", () => {
+      const rows = parseChannelLines(document.getElementById("mf-channels")?.value || "");
+      const modeName = document.getElementById("mf-name")?.value || "Mode 1";
+      if (applyChannelRows(rows, modeName)) closeModal("modal-mode-first");
+    });
+
+    document.getElementById("it-cancel")?.addEventListener("click", () => closeModal("modal-import-table"));
+    document.getElementById("it-file")?.addEventListener("click", () => document.getElementById("file-csv")?.click());
+    document.getElementById("file-csv")?.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      const ta = document.getElementById("it-text");
+      if (ta) ta.value = text;
+      e.target.value = "";
+    });
+    document.getElementById("it-apply")?.addEventListener("click", () => {
+      const rows = parseChannelLines(document.getElementById("it-text")?.value || "");
+      const modeName = document.getElementById("it-name")?.value || "From manual";
+      if (applyChannelRows(rows, modeName)) closeModal("modal-import-table");
+    });
+
+    document.querySelectorAll(".modal-backdrop").forEach((el) => {
+      el.addEventListener("click", (e) => {
+        if (e.target === el) el.setAttribute("hidden", "");
+      });
+    });
+
     document.addEventListener("keydown", (e) => {
       if (!(e.ctrlKey || e.metaKey)) return;
       if (e.key.toLowerCase() === "s") {
@@ -1260,6 +1586,7 @@
     }
     wire();
     render();
+    scheduleLint();
   }
 
   boot();
