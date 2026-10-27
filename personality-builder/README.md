@@ -18,13 +18,18 @@ python3 -m http.server 8765
 
 Luego visita `http://localhost:8765/`.
 
-## Flujo (como el original)
+## UI
 
-1. **New** → edita Manufacturer / Name / Display Name (Properties).
-2. Nodo **Attributes** → doble clic en el catálogo para añadir Dimmer, Pan, RGB…
-3. Selecciona un atributo → pestaña **DMX Values** (o Functions del catálogo).
-4. Nodo **Modes** → plantilla (p.ej. 4ch) → **Created Attributes** al modo.
-5. **Save .d4** → copia a `Documents\Titan\Personalities` (PC) o `D:\Personalities` (consola) y reinicia Titan.
+Tema moderno (carbón + ámbar), topbar con acciones visibles, empty states con CTAs, y modales Mode-first / Import con **vista previa en vivo** y presets (RGB, Spot, Wash).
+
+## Flujo recomendado
+
+1. **Crear modo** (o Importar tabla) → pega el patch del manual; la preview muestra offsets.
+2. Ajusta Manufacturer / Name en el Inspector.
+3. Refina **DMX Values**, **Channels**, **Cells** si hace falta.
+4. **Linter** → **Guardar .d4** → copia a `Documents\Titan\Personalities` (PC) o `D:\Personalities` (consola) y reinicia Titan.
+
+Alternativa clásica: atributos desde la biblioteca → plantilla Modes → Created Attributes.
 
 ## Muestra
 

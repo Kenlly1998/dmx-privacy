@@ -475,9 +475,99 @@
 
   function openModal(id) {
     document.getElementById(id)?.removeAttribute("hidden");
+    if (id === "modal-mode-first") {
+      updateChannelPreview("mf");
+      document.getElementById("mf-name")?.focus();
+    }
+    if (id === "modal-import-table") {
+      updateChannelPreview("it");
+      document.getElementById("it-name")?.focus();
+    }
   }
   function closeModal(id) {
     document.getElementById(id)?.setAttribute("hidden", "");
+  }
+
+  function channelPreviewRows(text) {
+    const rows = parseChannelLines(text);
+    let cursor = rows.length ? Math.min(...rows.map((r) => r.channel)) : 1;
+    return rows.map((row) => {
+      let offset = "—";
+      if (row.resolution !== "None") {
+        const start = row.channel || cursor;
+        offset = row.resolution === "16-bit" ? `${start},${start + 1}` : String(start);
+        cursor = start + (row.resolution === "16-bit" ? 2 : 1);
+      }
+      return { ...row, offset };
+    });
+  }
+
+  function updateChannelPreview(kind) {
+    const isMf = kind === "mf";
+    const text = document.getElementById(isMf ? "mf-channels" : "it-text")?.value || "";
+    const meta = document.getElementById(isMf ? "mf-preview-meta" : "it-preview-meta");
+    const table = document.getElementById(isMf ? "mf-preview" : "it-preview");
+    const tbody = table?.querySelector("tbody");
+    if (!tbody) return;
+    const rows = channelPreviewRows(text);
+    let footprint = 0;
+    for (const r of rows) {
+      if (r.resolution === "16-bit") footprint += 2;
+      else if (r.resolution !== "None") footprint += 1;
+    }
+    if (meta) {
+      meta.textContent = rows.length
+        ? `${rows.length} atr · ${footprint} ch DMX`
+        : "0 canales";
+    }
+    tbody.innerHTML = rows.length
+      ? rows
+          .map(
+            (r) => `<tr>
+          <td>${esc(r.channel)}</td>
+          <td>${esc(r.name)}</td>
+          <td>${esc(r.resolution.replace("-bit", ""))}</td>
+          <td>${esc(isMf ? r.offset : r.functionsHint || "—")}</td>
+        </tr>`
+          )
+          .join("")
+      : `<tr><td colspan="4" class="empty">Escribe o pega canales para previsualizar.</td></tr>`;
+  }
+
+  function applyMfPreset(key) {
+    const presets = {
+      rgb: `1,Dimmer,8\n2,Red,8\n3,Green,8\n4,Blue,8`,
+      spot: `1,Dimmer,8\n2,Pan,16\n4,Tilt,16\n6,Cyan,8\n7,Magenta,8\n8,Yellow,8\n9,Gobo1,8\n10,Zoom,8`,
+      wash: `1,Dimmer,8\n2,Red,8\n3,Green,8\n4,Blue,8\n5,White,8\n6,Zoom,8\n7,Pan,16\n9,Tilt,16`,
+    };
+    const ta = document.getElementById("mf-channels");
+    const name = document.getElementById("mf-name");
+    if (!ta) return;
+    ta.value = presets[key] || presets.rgb;
+    if (name) {
+      name.value = key === "spot" ? "Spot 16-bit" : key === "wash" ? "Wash RGBW" : "RGB Mode";
+    }
+    document.querySelectorAll("[data-mf-preset]").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.mfPreset === key);
+    });
+    updateChannelPreview("mf");
+  }
+
+  function creationHero(opts = {}) {
+    const title = opts.title || "Empieza por el patch";
+    const body =
+      opts.body ||
+      "Crea el modo desde los canales del manual, o importa una tabla CSV. También puedes añadir atributos desde la biblioteca.";
+    return `
+      <div class="empty-hero">
+        <p class="eyebrow">Flujo recomendado</p>
+        <h3>${esc(title)}</h3>
+        <p>${esc(body)}</p>
+        <div class="empty-actions">
+          <button type="button" class="btn accent" data-open-mf>Crear modo</button>
+          <button type="button" class="btn ghost" data-open-it>Importar tabla</button>
+        </div>
+      </div>`;
   }
 
   function defaultFunctionFor(attrId) {
@@ -867,10 +957,11 @@
     const body = document.getElementById("catalog-body");
     document.querySelectorAll("#catalog-tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === catalogTab));
 
-    const stub = (label) => `<p class="empty">${label} — pendiente (réplica MVP). En PB 3.4.1 esta pestaña está presente.</p>`;
+    const stub = (label) => `<p class="empty">${label} — pendiente en la réplica. Disponible en PB 3.4.1.</p>`;
 
     if (catalogTab === "attributes") {
-      body.innerHTML = `<div class="catalog-grid">${ATTR_CATALOG.map(
+      const hero = !state.attributes.length && !state.modes.length ? creationHero() : "";
+      body.innerHTML = `${hero}<div class="catalog-grid">${ATTR_CATALOG.map(
         (item) => `
         <div class="catalog-item" draggable="true" data-type="attr" data-id="${esc(item.id)}" title="${esc(item.bank)} / ${esc(item.wheel)}">
           <div class="glyph">${esc(item.glyph || item.name.slice(0, 3).toUpperCase())}</div>
@@ -878,7 +969,7 @@
           <button type="button" class="add-btn" data-add>+</button>
         </div>`
       ).join("")}</div>
-      <p class="empty">Catálogo alineado a PB 3.4.1 (${ATTR_CATALOG.length} attrs). Clic + para añadir.</p>`;
+      <p class="empty">${ATTR_CATALOG.length} atributos del catálogo PB. Usa + para añadir.</p>`;
     } else if (catalogTab === "functions") {
       body.innerHTML = `<div class="catalog-grid">${FUNC_CATALOG.map(
         (fn, i) => `
@@ -933,7 +1024,16 @@
   function renderCellsTab() {
     if (selection.kind !== "mode") {
       setHelp("Cells: selecciona un Mode para mapear la cuadrícula de celdas.");
-      return `<p class="empty">Selecciona un Mode. Luego define filas × columnas y genera el orden.</p>`;
+      if (!state.modes.length) {
+        return creationHero({
+          title: "Crea un modo antes de mapear celdas",
+          body: "Las celdas viven dentro de un Mode. Genera el patch Mode-first y vuelve aquí para la rejilla.",
+        });
+      }
+      return `<div class="empty-hero soft">
+        <h3>Selecciona un Mode</h3>
+        <p>Elige un modo en el árbol Fixture y define filas × columnas para generar el orden DMX.</p>
+      </div>`;
     }
     const mode = findMode(selection.name);
     if (!mode) return "";
@@ -991,26 +1091,33 @@
           </label>
           <label class="grow">ModeLink<input id="cell-modelink" value="${esc(cfg.modeLink)}" /></label>
           <div class="actions">
-            <button type="button" id="btn-cell-gen">Generar</button>
-            <button type="button" id="btn-cell-clear">Limpiar</button>
+            <button type="button" class="btn primary" id="btn-cell-gen">Generar</button>
+            <button type="button" class="btn ghost" id="btn-cell-clear">Limpiar</button>
           </div>
         </div>
-        <div>
-          <strong>Master attributes</strong>
+        <div class="cell-section">
+          <div class="section-label">Master attributes</div>
           <div class="cell-master">${masterChecks}</div>
         </div>
-        <div class="cell-layout" style="grid-template-columns: repeat(${cols}, 64px);">
-          ${tiles.join("")}
+        <div class="cell-section">
+          <div class="section-label">Rejilla ${rows}×${cols}</div>
+          <div class="cell-layout" style="grid-template-columns: repeat(${cols}, 68px);">
+            ${tiles.join("")}
+          </div>
         </div>
-        <p class="empty">Clic en celdas con orden Manual para definir la secuencia. Generar aplica offsets = inicio + (n−1)×ch/celda.</p>
-        <div class="cell-order-list">${esc(orderPreview)}</div>
+        <p class="empty">Con orden Manual, haz clic en las celdas para definir la secuencia. Generar aplica offsets = inicio + (n−1)×ch/celda.</p>
+        <div class="cell-section">
+          <div class="section-label">Orden generado</div>
+          <div class="cell-order-list">${esc(orderPreview)}</div>
+        </div>
       </div>`;
   }
 
   function renderPropertiesTab() {
     if (selection.kind === "fixture") {
-      setHelp("Name: Name of this fixture.");
-      return `
+      setHelp("Identidad del fixture. Luego crea el modo desde el patch del manual.");
+      const hero = !state.attributes.length && !state.modes.length ? creationHero() : "";
+      return `${hero}
         <table class="prop-grid">
           <tr><th colspan="2">Fixture</th></tr>
           <tr><td class="label">Display Name</td><td><input id="p-short" maxlength="10" value="${esc(state.shortName)}" /></td></tr>
@@ -1063,11 +1170,23 @@
     }
     if (selection.kind === "attributes") {
       setHelp("Add attributes from the Attributes catalog.");
+      if (!state.attributes.length) {
+        return creationHero({
+          title: "Aún no hay atributos",
+          body: "Lo más rápido es crear un modo desde el patch; los atributos se generan solos.",
+        });
+      }
       return `<p class="empty">Elige atributos en el catálogo (+).</p>`;
     }
     if (selection.kind === "modes") {
       setHelp("Create a mode from a template, then map Created Attributes.");
-      return `<p class="empty">Elige una plantilla de Modes (+).</p>`;
+      if (!state.modes.length) {
+        return creationHero({
+          title: "Crea tu primer modo",
+          body: "Mode-first lee el manual en orden DMX y deja el modo listo con offsets.",
+        });
+      }
+      return `<p class="empty">Elige una plantilla de Modes (+) o crea desde canales.</p>`;
     }
     setHelp("");
     return `<p class="empty">Nodo pendiente en la réplica MVP.</p>`;
@@ -1399,7 +1518,7 @@
     const star = dirty ? " *" : "";
     const label = state.manufacturer ? `${state.manufacturer} — ${state.name}` : state.name;
     document.getElementById("title-fixture").textContent = `${label}${star}`;
-    document.title = `${state.name}${star} - Personality Builder Replica`;
+    document.title = `${state.name}${star} - Personality Builder`;
   }
 
   function render() {
@@ -1459,6 +1578,12 @@
     document.getElementById("tree").addEventListener("click", onTreeClick);
     document.getElementById("catalog-body").addEventListener("dblclick", onCatalogActivate);
     document.getElementById("catalog-body").addEventListener("click", onCatalogActivate);
+    document.addEventListener("click", (e) => {
+      const mf = e.target.closest("[data-open-mf]");
+      const it = e.target.closest("[data-open-it]");
+      if (mf) openModal("modal-mode-first");
+      if (it) openModal("modal-import-table");
+    });
 
     document.querySelectorAll("#catalog-tabs button").forEach((b) => {
       b.addEventListener("click", () => {
@@ -1484,6 +1609,7 @@
     });
 
     document.getElementById("btn-mode-first")?.addEventListener("click", () => openModal("modal-mode-first"));
+    document.getElementById("btn-quick-create")?.addEventListener("click", () => openModal("modal-mode-first"));
     document.getElementById("btn-import-table")?.addEventListener("click", () => openModal("modal-import-table"));
     document.getElementById("btn-run-lint")?.addEventListener("click", () => {
       const issues = runLinter();
@@ -1493,14 +1619,22 @@
       setStatus(err ? `Linter: ${err} errores, ${warn} avisos` : warn ? `Linter: ${warn} avisos` : "Linter OK");
     });
 
-    document.getElementById("mf-cancel")?.addEventListener("click", () => closeModal("modal-mode-first"));
+    const closeMf = () => closeModal("modal-mode-first");
+    document.getElementById("mf-cancel")?.addEventListener("click", closeMf);
+    document.getElementById("mf-cancel-2")?.addEventListener("click", closeMf);
     document.getElementById("mf-apply")?.addEventListener("click", () => {
       const rows = parseChannelLines(document.getElementById("mf-channels")?.value || "");
       const modeName = document.getElementById("mf-name")?.value || "Mode 1";
       if (applyChannelRows(rows, modeName)) closeModal("modal-mode-first");
     });
+    document.getElementById("mf-channels")?.addEventListener("input", () => updateChannelPreview("mf"));
+    document.querySelectorAll("[data-mf-preset]").forEach((btn) => {
+      btn.addEventListener("click", () => applyMfPreset(btn.dataset.mfPreset));
+    });
 
-    document.getElementById("it-cancel")?.addEventListener("click", () => closeModal("modal-import-table"));
+    const closeIt = () => closeModal("modal-import-table");
+    document.getElementById("it-cancel")?.addEventListener("click", closeIt);
+    document.getElementById("it-cancel-2")?.addEventListener("click", closeIt);
     document.getElementById("it-file")?.addEventListener("click", () => document.getElementById("file-csv")?.click());
     document.getElementById("file-csv")?.addEventListener("change", async (e) => {
       const file = e.target.files?.[0];
@@ -1508,8 +1642,10 @@
       const text = await file.text();
       const ta = document.getElementById("it-text");
       if (ta) ta.value = text;
+      updateChannelPreview("it");
       e.target.value = "";
     });
+    document.getElementById("it-text")?.addEventListener("input", () => updateChannelPreview("it"));
     document.getElementById("it-apply")?.addEventListener("click", () => {
       const rows = parseChannelLines(document.getElementById("it-text")?.value || "");
       const modeName = document.getElementById("it-name")?.value || "From manual";
@@ -1523,6 +1659,11 @@
     });
 
     document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        closeModal("modal-mode-first");
+        closeModal("modal-import-table");
+        return;
+      }
       if (!(e.ctrlKey || e.metaKey)) return;
       if (e.key.toLowerCase() === "s") {
         e.preventDefault();

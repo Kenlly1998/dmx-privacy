@@ -4,111 +4,168 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Personality Builder Replica</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div id="app">
-    <div class="titlebar">
-      Personality Builder Replica
-      <span id="title-fixture">—</span>
-    </div>
-
-    <div class="menubar">
-      <div class="menu">
-        <button type="button" class="menu-root">File</button>
-        <div class="menu-drop">
-          <button type="button" id="btn-new">New<span>Ctrl+N</span></button>
-          <button type="button" id="btn-import">Open…<span>Ctrl+O</span></button>
-          <button type="button" id="btn-export">Save .d4<span>Ctrl+S</span></button>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div class="brand-text">
+          <strong>Personality Builder</strong>
+          <span>Réplica · .d4 Titan</span>
         </div>
       </div>
-      <button type="button" class="menu-root" disabled title="MVP">Edit</button>
-      <button type="button" class="menu-root" disabled title="MVP">View</button>
-      <div class="menu">
-        <button type="button" class="menu-root">Tools</button>
-        <div class="menu-drop">
-          <button type="button" id="btn-mode-first">Mode-first from channels…</button>
-          <button type="button" id="btn-import-table">Import channel table…</button>
-          <button type="button" id="btn-run-lint">Run linter</button>
-        </div>
+      <div class="fixture-chip" id="title-fixture">Fixture 1</div>
+      <div class="top-actions">
+        <button type="button" class="btn ghost" id="btn-new" title="Ctrl+N">Nuevo</button>
+        <button type="button" class="btn ghost" id="btn-import" title="Ctrl+O">Abrir</button>
+        <button type="button" class="btn primary" id="btn-export" title="Ctrl+S">Guardar .d4</button>
+        <button type="button" class="btn accent" id="btn-mode-first">Crear modo</button>
+        <button type="button" class="btn ghost" id="btn-import-table">Importar tabla</button>
+        <button type="button" class="btn ghost" id="btn-run-lint">Linter</button>
       </div>
-      <button type="button" class="menu-root" disabled title="MVP">Help</button>
       <input type="file" id="file-import" accept=".d4,.xml,text/xml" class="hidden" />
       <input type="file" id="file-csv" accept=".csv,.tsv,.txt,text/csv,text/plain" class="hidden" />
-      <div class="spacer"></div>
-      <span class="badge">PB 3.4.1 replica · Mode-first · Linter · Cells</span>
-    </div>
+    </header>
 
     <div class="workspace">
       <aside class="nav-pane" id="nav-pane">
-        <div class="pane-header">Navigation Pane</div>
+        <div class="pane-header">
+          <span>Fixture</span>
+          <button type="button" class="btn tiny" id="btn-quick-create" title="Crear desde canales">+</button>
+        </div>
         <div class="pane-body">
           <ul class="tree" id="tree"></ul>
         </div>
       </aside>
 
       <section class="catalog-pane">
-        <div class="pane-header">Attribute Pane</div>
+        <div class="pane-header">
+          <span>Biblioteca</span>
+        </div>
         <div class="tabs" id="catalog-tabs">
           <button type="button" data-tab="attributes" class="active">Attributes</button>
           <button type="button" data-tab="functions">Functions</button>
-          <button type="button" data-tab="created">Created Attributes</button>
-          <button type="button" data-tab="current">Current Functions</button>
-          <button type="button" data-tab="history">History</button>
+          <button type="button" data-tab="created">Created</button>
           <button type="button" data-tab="modes">Modes</button>
+          <button type="button" data-tab="current">Current Fn</button>
           <button type="button" data-tab="macros">Macros</button>
           <button type="button" data-tab="palettes">Palettes</button>
           <button type="button" data-tab="swatch">Swatch</button>
+          <button type="button" data-tab="history">History</button>
         </div>
         <div class="pane-body" id="catalog-body"></div>
       </section>
 
       <section class="props-pane">
-        <div class="pane-header">Properties Pane</div>
+        <div class="pane-header">
+          <span>Inspector</span>
+        </div>
         <div class="tabs" id="props-tabs">
           <button type="button" data-tab="properties" class="active">Properties</button>
           <button type="button" data-tab="dmx">DMX Values</button>
           <button type="button" data-tab="channels">Channels</button>
-          <button type="button" data-tab="wheels">Wheel Mapping</button>
-          <button type="button" data-tab="locate">Locate Values</button>
+          <button type="button" data-tab="wheels">Wheels</button>
+          <button type="button" data-tab="locate">Locate</button>
           <button type="button" data-tab="cells">Cells</button>
         </div>
         <div class="pane-body" id="props-body"></div>
-        <div class="help-bar" id="help-bar">Name: Name of this fixture.</div>
+        <div class="help-bar" id="help-bar">Define el fixture o crea un modo desde el manual.</div>
       </section>
     </div>
 
     <div class="lint-bar" id="lint-bar" hidden></div>
 
-    <div class="status">
+    <footer class="status">
       <span id="status-text">Listo.</span>
       <span id="status-counts">0 attrs · 0 modes</span>
-    </div>
+    </footer>
   </div>
 
   <div class="modal-backdrop" id="modal-mode-first" hidden>
-    <div class="modal" role="dialog" aria-labelledby="mf-title">
-      <h3 id="mf-title">Mode-first from channels</h3>
-      <p class="muted">Lista canales en orden DMX (uno por línea). Formato: <code>ch,Nombre[,8|16]</code> o solo el nombre.</p>
-      <label>Mode name <input id="mf-name" value="Mode 1" /></label>
-      <textarea id="mf-channels" rows="12" placeholder="1,Dimmer,8&#10;2,Red,8&#10;3,Green,8&#10;4,Blue,8&#10;5,Pan,16&#10;7,Tilt,16"></textarea>
+    <div class="modal modal-wide" role="dialog" aria-labelledby="mf-title">
+      <header class="modal-head">
+        <div>
+          <p class="eyebrow">Creación rápida</p>
+          <h3 id="mf-title">Mode-first desde canales</h3>
+        </div>
+        <button type="button" class="btn icon" id="mf-cancel" aria-label="Cerrar">×</button>
+      </header>
+      <p class="lede">Escribe el patch del manual en orden DMX. Verás la vista previa antes de crear atributos y el modo.</p>
+      <div class="modal-grid">
+        <div class="modal-col">
+          <label>Nombre del modo <input id="mf-name" value="Mode 1" /></label>
+          <label class="grow">Canales
+            <textarea id="mf-channels" rows="14" placeholder="1,Dimmer,8&#10;2,Red,8&#10;3,Green,8&#10;4,Blue,8&#10;5,Pan,16&#10;7,Tilt,16"></textarea>
+          </label>
+          <div class="chip-row">
+            <button type="button" class="chip" data-mf-preset="rgb">RGB + Dimmer</button>
+            <button type="button" class="chip" data-mf-preset="spot">Spot 16-bit</button>
+            <button type="button" class="chip" data-mf-preset="wash">Wash RGBW</button>
+          </div>
+        </div>
+        <div class="modal-col">
+          <div class="preview-card">
+            <div class="preview-head">
+              <strong>Vista previa</strong>
+              <span id="mf-preview-meta">0 canales</span>
+            </div>
+            <div class="preview-table-wrap">
+              <table class="preview-table" id="mf-preview">
+                <thead><tr><th>Ch</th><th>Atributo</th><th>Res</th><th>Offset</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="modal-actions">
-        <button type="button" id="mf-cancel">Cancel</button>
-        <button type="button" id="mf-apply" class="primary">Create mode + attributes</button>
+        <button type="button" class="btn ghost" id="mf-cancel-2">Cancelar</button>
+        <button type="button" class="btn primary" id="mf-apply">Crear modo + atributos</button>
       </div>
     </div>
   </div>
 
   <div class="modal-backdrop" id="modal-import-table" hidden>
-    <div class="modal" role="dialog" aria-labelledby="it-title">
-      <h3 id="it-title">Import channel table</h3>
-      <p class="muted">Pega CSV/TSV del manual o elige un archivo. Columnas: canal, atributo [, resolución] [, rango DMX functions].</p>
-      <label>Mode name <input id="it-name" value="From manual" /></label>
-      <textarea id="it-text" rows="12" placeholder="Ch,Attribute,Res,Functions&#10;1,Dimmer,8,0-255 Dimmer&#10;2,Red,8,0-255&#10;3,Green,8,0-255&#10;4,Blue,8,0-255"></textarea>
+    <div class="modal modal-wide" role="dialog" aria-labelledby="it-title">
+      <header class="modal-head">
+        <div>
+          <p class="eyebrow">Desde el manual</p>
+          <h3 id="it-title">Importar tabla de canales</h3>
+        </div>
+        <button type="button" class="btn icon" id="it-cancel" aria-label="Cerrar">×</button>
+      </header>
+      <p class="lede">Pega CSV/TSV o abre un archivo. Columnas: canal, atributo, resolución, functions.</p>
+      <div class="modal-grid">
+        <div class="modal-col">
+          <label>Nombre del modo <input id="it-name" value="From manual" /></label>
+          <label class="grow">Tabla
+            <textarea id="it-text" rows="14" placeholder="Ch,Attribute,Res,Functions&#10;1,Dimmer,8,0-255 Dimmer&#10;2,Red,8,0-255&#10;3,Green,8,0-255&#10;4,Blue,8,0-255"></textarea>
+          </label>
+          <button type="button" class="btn ghost" id="it-file">Abrir CSV…</button>
+        </div>
+        <div class="modal-col">
+          <div class="preview-card">
+            <div class="preview-head">
+              <strong>Vista previa</strong>
+              <span id="it-preview-meta">0 filas</span>
+            </div>
+            <div class="preview-table-wrap">
+              <table class="preview-table" id="it-preview">
+                <thead><tr><th>Ch</th><th>Atributo</th><th>Res</th><th>Fn</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
       <div class="modal-actions">
-        <button type="button" id="it-file">Open CSV…</button>
-        <button type="button" id="it-cancel">Cancel</button>
-        <button type="button" id="it-apply" class="primary">Import</button>
+        <button type="button" class="btn ghost" id="it-cancel-2">Cancelar</button>
+        <button type="button" class="btn primary" id="it-apply">Importar</button>
       </div>
     </div>
   </div>
