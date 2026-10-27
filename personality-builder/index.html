@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Personality Builder Replica</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <div class="titlebar">
+      Personality Builder Replica
+      <span id="title-fixture">—</span>
+    </div>
+
+    <div class="menubar">
+      <button type="button" id="btn-new" title="File → New">New</button>
+      <button type="button" id="btn-import" title="Abrir .d4">Open…</button>
+      <button type="button" id="btn-export" title="Guardar .d4">Save .d4</button>
+      <input type="file" id="file-import" accept=".d4,.xml,text/xml" class="hidden" />
+      <div class="spacer"></div>
+      <span class="badge">Réplica independiente · compatible .d4 (MVP)</span>
+    </div>
+
+    <div class="workspace">
+      <aside class="nav-pane" id="nav-pane">
+        <div class="pane-header">Navigation Pane</div>
+        <div class="pane-body">
+          <ul class="tree" id="tree"></ul>
+        </div>
+      </aside>
+
+      <section class="catalog-pane">
+        <div class="pane-header">Attribute Pane</div>
+        <div class="tabs" id="catalog-tabs">
+          <button type="button" data-tab="attributes" class="active">Attributes</button>
+          <button type="button" data-tab="functions">Functions</button>
+          <button type="button" data-tab="created">Created Attributes</button>
+          <button type="button" data-tab="modes">Modes</button>
+        </div>
+        <div class="pane-body" id="catalog-body"></div>
+      </section>
+
+      <section class="props-pane">
+        <div class="pane-header">Properties Pane</div>
+        <div class="tabs" id="props-tabs">
+          <button type="button" data-tab="properties" class="active">Properties</button>
+          <button type="button" data-tab="dmx">DMX Values</button>
+          <button type="button" data-tab="channels">Channels</button>
+          <button type="button" data-tab="wheels">Wheel Mapping</button>
+          <button type="button" data-tab="locate">Locate Values</button>
+        </div>
+        <div class="pane-body" id="props-body"></div>
+      </section>
+    </div>
+
+    <div class="status">
+      <span id="status-text">Listo.</span>
+      <span id="status-counts">0 attrs · 0 modes</span>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
