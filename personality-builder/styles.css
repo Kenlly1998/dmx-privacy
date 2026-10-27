@@ -482,6 +482,128 @@ textarea {
   display: none !important;
 }
 
+/* Cell grid mapper */
+.cell-mapper {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cell-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+  background: var(--chrome);
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+.cell-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.cell-controls input,
+.cell-controls select {
+  border: 1px solid #ccc;
+  padding: 3px 6px;
+  min-width: 64px;
+  background: #fff;
+}
+
+.cell-controls .grow {
+  flex: 1;
+  min-width: 140px;
+}
+
+.cell-controls .actions {
+  display: flex;
+  gap: 6px;
+}
+
+.cell-layout {
+  display: grid;
+  gap: 4px;
+  width: max-content;
+  max-width: 100%;
+  padding: 4px;
+  background: #f7f7f7;
+  border: 1px solid #ccc;
+}
+
+.cell-tile {
+  width: 64px;
+  height: 56px;
+  border: 1px solid var(--border-dark);
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 11px;
+}
+
+.cell-tile:hover {
+  border-color: var(--select);
+}
+
+.cell-tile.active {
+  background: #dbe8ff;
+  border-color: var(--select);
+}
+
+.cell-tile .ord {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.cell-tile .meta {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.cell-tile.empty-slot {
+  opacity: 0.35;
+  border-style: dashed;
+}
+
+.cell-master {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid #ddd;
+  background: #fafafa;
+}
+
+.cell-master label {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 6px;
+  background: #fff;
+  border: 1px solid #ddd;
+}
+
+.cell-order-list {
+  font-family: var(--mono);
+  font-size: 11px;
+  max-height: 120px;
+  overflow: auto;
+  border: 1px solid #ddd;
+  background: #fff;
+  padding: 6px;
+  white-space: pre;
+}
+
 @media (max-width: 900px) {
   .workspace {
     grid-template-columns: 1fr;

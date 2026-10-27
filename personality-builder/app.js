@@ -74,6 +74,85 @@
     };
   }
 
+  function createEmptyCells() {
+    return {
+      rows: 1,
+      cols: 4,
+      channelsPerCell: 3,
+      startOffset: 1,
+      order: "row-ltr", // row-ltr | row-rtl | col-ttb | serpentine | custom
+      modeLink: "RGB 8bit cell",
+      masterIds: [],
+      customOrder: [], // flat indices into rows*cols for custom click order
+      cells: [], // { id, name, x, y, channelOffset, orderIndex }
+    };
+  }
+
+  function ensureModeCells(mode) {
+    if (!mode.cells) mode.cells = createEmptyCells();
+    if (!Array.isArray(mode.cells.cells)) mode.cells.cells = [];
+    if (!Array.isArray(mode.cells.customOrder)) mode.cells.customOrder = [];
+    if (!Array.isArray(mode.cells.masterIds)) mode.cells.masterIds = [];
+    return mode.cells;
+  }
+
+  /** Build ordered list of {x,y,flat} according to pattern */
+  function buildCellCoordinates(cfg) {
+    const rows = Math.max(1, Number(cfg.rows) || 1);
+    const cols = Math.max(1, Number(cfg.cols) || 1);
+    const coords = [];
+    if (cfg.order === "custom" && cfg.customOrder.length) {
+      for (const flat of cfg.customOrder) {
+        const y = Math.floor(flat / cols);
+        const x = flat % cols;
+        if (y >= 0 && y < rows && x >= 0 && x < cols) coords.push({ x, y, flat });
+      }
+      return coords;
+    }
+    if (cfg.order === "col-ttb") {
+      for (let x = 0; x < cols; x++) for (let y = 0; y < rows; y++) coords.push({ x, y, flat: y * cols + x });
+      return coords;
+    }
+    if (cfg.order === "row-rtl") {
+      for (let y = 0; y < rows; y++) for (let x = cols - 1; x >= 0; x--) coords.push({ x, y, flat: y * cols + x });
+      return coords;
+    }
+    if (cfg.order === "serpentine") {
+      for (let y = 0; y < rows; y++) {
+        if (y % 2 === 0) for (let x = 0; x < cols; x++) coords.push({ x, y, flat: y * cols + x });
+        else for (let x = cols - 1; x >= 0; x--) coords.push({ x, y, flat: y * cols + x });
+      }
+      return coords;
+    }
+    // row-ltr default
+    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) coords.push({ x, y, flat: y * cols + x });
+    return coords;
+  }
+
+  function regenerateCells(mode) {
+    const cfg = ensureModeCells(mode);
+    const stride = Math.max(1, Number(cfg.channelsPerCell) || 1);
+    const start = Math.max(1, Number(cfg.startOffset) || 1);
+    const coords = buildCellCoordinates(cfg);
+    cfg.cells = coords.map((c, i) => ({
+      id: `Cell${i + 1}`,
+      name: `Cell ${i + 1}`,
+      x: c.x,
+      y: c.y,
+      channelOffset: String(start + i * stride),
+      orderIndex: i + 1,
+      flat: c.flat,
+    }));
+    const total = start - 1 + coords.length * stride;
+    if (total > mode.channels) mode.channels = total;
+    if (!cfg.masterIds.length) {
+      cfg.masterIds = state.attributes
+        .filter((a) => ["Dimmer", "Red", "Green", "Blue", "White", "Amber"].includes(a.id))
+        .map((a) => a.id);
+    }
+    return cfg;
+  }
+
   function setStatus(msg) {
     statusMsg = msg;
     const el = document.getElementById("status-text");
@@ -188,6 +267,7 @@
       name,
       channels: tpl.channels || 0,
       includes: [],
+      cells: createEmptyCells(),
     });
     selection = { kind: "mode", name };
     propsTab = "channels";
@@ -297,17 +377,46 @@
       lines.push(`      <Size Height="" Width="" Depth="" />`);
       lines.push(`      <Focus Type="Fixed" PanMax="0" TiltMax="0" PanMaxSpeed="0" TiltMaxSpeed="0" />`);
       lines.push(`    </Physical>`);
-      lines.push(`    <Include>`);
-      for (const inc of mode.includes) {
-        const offset = inc.channelOffset ? ` ChannelOffset="${xmlAttr(inc.channelOffset)}"` : "";
-        const wheel = inc.wheel ? ` Wheel="${xmlAttr(inc.wheel)}"` : "";
-        const vdim =
-          ["Red", "Green", "Blue", "White", "Amber"].includes(inc.id) && fx.attributes.some((a) => a.id === "Dimmer")
-            ? ` VirtualControl="Dimmer"`
-            : "";
-        lines.push(`      <Attribute ID="${xmlAttr(inc.id)}"${offset}${wheel}${vdim} />`);
+      const hasCells = mode.cells && Array.isArray(mode.cells.cells) && mode.cells.cells.length > 0;
+      if (hasCells) {
+        // Cell modes typically leave Include empty; masters live under Cells
+        lines.push(`    <Include />`);
+        lines.push(`    <Cells>`);
+        lines.push(`      <Master>`);
+        const masters = mode.cells.masterIds.length
+          ? mode.cells.masterIds
+          : fx.attributes.map((a) => a.id);
+        for (const mid of masters) {
+          const attr = fx.attributes.find((a) => a.id === mid);
+          const wheel = attr?.wheel ? ` Wheel="${xmlAttr(attr.wheel)}"` : "";
+          lines.push(`        <Attribute ID="${xmlAttr(mid)}"${wheel} />`);
+        }
+        lines.push(`      </Master>`);
+        for (const cell of mode.cells.cells) {
+          lines.push(
+            `      <Cell ID="${xmlAttr(cell.id)}" Name="${xmlAttr(cell.name)}" ChannelOffset="${xmlAttr(
+              cell.channelOffset
+            )}" ModeLink="${xmlAttr(mode.cells.modeLink || "")}" X="${cell.x}" Y="${cell.y}">`
+          );
+          for (const mid of masters) {
+            lines.push(`        <AttributeLink SourceId="${xmlAttr(mid)}" TargetId="${xmlAttr(mid)}" />`);
+          }
+          lines.push(`      </Cell>`);
+        }
+        lines.push(`    </Cells>`);
+      } else {
+        lines.push(`    <Include>`);
+        for (const inc of mode.includes) {
+          const offset = inc.channelOffset ? ` ChannelOffset="${xmlAttr(inc.channelOffset)}"` : "";
+          const wheel = inc.wheel ? ` Wheel="${xmlAttr(inc.wheel)}"` : "";
+          const vdim =
+            ["Red", "Green", "Blue", "White", "Amber"].includes(inc.id) && fx.attributes.some((a) => a.id === "Dimmer")
+              ? ` VirtualControl="Dimmer"`
+              : "";
+          lines.push(`      <Attribute ID="${xmlAttr(inc.id)}"${offset}${wheel}${vdim} />`);
+        }
+        lines.push(`    </Include>`);
       }
-      lines.push(`    </Include>`);
       lines.push(`  </Mode>`);
     }
     lines.push(`</Fixture>`);
@@ -361,10 +470,40 @@
         channelOffset: a.getAttribute("ChannelOffset") || "",
         wheel: a.getAttribute("Wheel") || "",
       }));
+      const cellsCfg = createEmptyCells();
+      const cellsRoot = modeEl.querySelector(":scope > Cells");
+      if (cellsRoot) {
+        cellsCfg.masterIds = [...cellsRoot.querySelectorAll("Master > Attribute")].map((a) => a.getAttribute("ID") || "").filter(Boolean);
+        const cellEls = [...cellsRoot.querySelectorAll(":scope > Cell")];
+        cellsCfg.cells = cellEls.map((el, i) => ({
+          id: el.getAttribute("ID") || `Cell${i + 1}`,
+          name: el.getAttribute("Name") || `Cell ${i + 1}`,
+          x: Number(el.getAttribute("X") || 0),
+          y: Number(el.getAttribute("Y") || 0),
+          channelOffset: el.getAttribute("ChannelOffset") || String(i + 1),
+          orderIndex: i + 1,
+        }));
+        if (cellEls[0]) cellsCfg.modeLink = cellEls[0].getAttribute("ModeLink") || cellsCfg.modeLink;
+        if (cellsCfg.cells.length) {
+          const xs = cellsCfg.cells.map((c) => c.x);
+          const ys = cellsCfg.cells.map((c) => c.y);
+          cellsCfg.cols = Math.max(...xs) - Math.min(...xs) + 1;
+          cellsCfg.rows = Math.max(...ys) - Math.min(...ys) + 1;
+          if (cellsCfg.cells.length >= 2) {
+            const o0 = Number(cellsCfg.cells[0].channelOffset);
+            const o1 = Number(cellsCfg.cells[1].channelOffset);
+            if (o1 > o0) cellsCfg.channelsPerCell = o1 - o0;
+          }
+          cellsCfg.startOffset = Number(cellsCfg.cells[0].channelOffset) || 1;
+          cellsCfg.order = "custom";
+          cellsCfg.customOrder = cellsCfg.cells.map((c) => c.y * cellsCfg.cols + c.x);
+        }
+      }
       next.modes.push({
         name: modeEl.getAttribute("Name") || "Mode",
         channels: Number(modeEl.getAttribute("Channels") || includes.length),
         includes,
+        cells: cellsCfg,
       });
     }
     state = next;
@@ -501,7 +640,84 @@
     else if (propsTab === "channels") body.innerHTML = renderChannelsTab();
     else if (propsTab === "wheels") body.innerHTML = renderWheelsTab();
     else if (propsTab === "locate") body.innerHTML = renderLocateTab();
-    else if (propsTab === "cells") body.innerHTML = `<p class="empty">Cells — presente en PB 3.4.1; pendiente en la réplica MVP.</p>`;
+    else if (propsTab === "cells") body.innerHTML = renderCellsTab();
+  }
+
+  function renderCellsTab() {
+    if (selection.kind !== "mode") {
+      setHelp("Cells: selecciona un Mode para mapear la cuadrícula de celdas.");
+      return `<p class="empty">Selecciona un Mode. Luego define filas × columnas y genera el orden.</p>`;
+    }
+    const mode = findMode(selection.name);
+    if (!mode) return "";
+    const cfg = ensureModeCells(mode);
+    setHelp("Cells grid: X/Y + ChannelOffset. El orden define la secuencia DMX de las celdas.");
+
+    const rows = Math.max(1, Number(cfg.rows) || 1);
+    const cols = Math.max(1, Number(cfg.cols) || 1);
+    const byFlat = new Map(cfg.cells.map((c) => [c.y * cols + c.x, c]));
+    const tiles = [];
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const flat = y * cols + x;
+        const cell = byFlat.get(flat);
+        const inCustom = cfg.order === "custom" && cfg.customOrder.includes(flat);
+        const ordLabel = cell ? cell.orderIndex : inCustom ? cfg.customOrder.indexOf(flat) + 1 : "";
+        tiles.push(`
+          <button type="button" class="cell-tile ${cell ? "active" : "empty-slot"}" data-cell-flat="${flat}" title="X=${x} Y=${y}">
+            <span class="ord">${ordLabel || "·"}</span>
+            <span class="meta">${cell ? `ch ${esc(cell.channelOffset)}` : `${x},${y}`}</span>
+          </button>`);
+      }
+    }
+
+    const masterChecks = state.attributes.length
+      ? state.attributes
+          .map(
+            (a) => `
+        <label><input type="checkbox" data-master-id="${esc(a.id)}" ${
+              cfg.masterIds.includes(a.id) ? "checked" : ""
+            } /> ${esc(a.name)}</label>`
+          )
+          .join("")
+      : `<span class="empty">Añade atributos del fixture (p.ej. RGB + Dimmer) para Master.</span>`;
+
+    const orderPreview = cfg.cells.length
+      ? cfg.cells.map((c) => `${c.orderIndex}. ${c.id}  X=${c.x} Y=${c.y}  offset=${c.channelOffset}`).join("\n")
+      : "(sin celdas — pulsa Generar)";
+
+    return `
+      <div class="cell-mapper">
+        <div class="cell-controls">
+          <label>Filas<input id="cell-rows" type="number" min="1" max="64" value="${rows}" /></label>
+          <label>Columnas<input id="cell-cols" type="number" min="1" max="64" value="${cols}" /></label>
+          <label>Ch / celda<input id="cell-stride" type="number" min="1" max="64" value="${cfg.channelsPerCell}" /></label>
+          <label>Inicio DMX<input id="cell-start" type="number" min="1" value="${cfg.startOffset}" /></label>
+          <label>Orden
+            <select id="cell-order">
+              <option value="row-ltr" ${cfg.order === "row-ltr" ? "selected" : ""}>Filas → (L→R)</option>
+              <option value="row-rtl" ${cfg.order === "row-rtl" ? "selected" : ""}>Filas → (R→L)</option>
+              <option value="col-ttb" ${cfg.order === "col-ttb" ? "selected" : ""}>Columnas ↓</option>
+              <option value="serpentine" ${cfg.order === "serpentine" ? "selected" : ""}>Serpentine</option>
+              <option value="custom" ${cfg.order === "custom" ? "selected" : ""}>Manual (clic)</option>
+            </select>
+          </label>
+          <label class="grow">ModeLink<input id="cell-modelink" value="${esc(cfg.modeLink)}" /></label>
+          <div class="actions">
+            <button type="button" id="btn-cell-gen">Generar</button>
+            <button type="button" id="btn-cell-clear">Limpiar</button>
+          </div>
+        </div>
+        <div>
+          <strong>Master attributes</strong>
+          <div class="cell-master">${masterChecks}</div>
+        </div>
+        <div class="cell-layout" style="grid-template-columns: repeat(${cols}, 64px);">
+          ${tiles.join("")}
+        </div>
+        <p class="empty">Clic en celdas con orden Manual para definir la secuencia. Generar aplica offsets = inicio + (n−1)×ch/celda.</p>
+        <div class="cell-order-list">${esc(orderPreview)}</div>
+      </div>`;
   }
 
   function renderPropertiesTab() {
@@ -790,6 +1006,104 @@
           attr.locate = input.value;
           markDirty();
         }
+      });
+    });
+
+    bindCellsHandlers();
+  }
+
+  function bindCellsHandlers() {
+    if (propsTab !== "cells" || selection.kind !== "mode") return;
+    const mode = findMode(selection.name);
+    if (!mode) return;
+    const cfg = ensureModeCells(mode);
+
+    const syncDims = () => {
+      const rows = document.getElementById("cell-rows");
+      const cols = document.getElementById("cell-cols");
+      const stride = document.getElementById("cell-stride");
+      const start = document.getElementById("cell-start");
+      const order = document.getElementById("cell-order");
+      const link = document.getElementById("cell-modelink");
+      if (rows) cfg.rows = Math.max(1, Number(rows.value) || 1);
+      if (cols) cfg.cols = Math.max(1, Number(cols.value) || 1);
+      if (stride) cfg.channelsPerCell = Math.max(1, Number(stride.value) || 1);
+      if (start) cfg.startOffset = Math.max(1, Number(start.value) || 1);
+      if (order) {
+        const prev = cfg.order;
+        cfg.order = order.value;
+        if (cfg.order !== "custom") cfg.customOrder = [];
+        else if (prev !== "custom") cfg.customOrder = [];
+      }
+      if (link) cfg.modeLink = link.value;
+      markDirty();
+    };
+
+    ["cell-rows", "cell-cols", "cell-stride", "cell-start", "cell-order", "cell-modelink"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("change", () => {
+        syncDims();
+        if (id === "cell-order" || id === "cell-rows" || id === "cell-cols") {
+          renderProps();
+          bindPropsHandlers();
+        }
+      });
+    });
+
+    document.querySelectorAll("[data-master-id]").forEach((cb) => {
+      cb.addEventListener("change", () => {
+        cfg.masterIds = [...document.querySelectorAll("[data-master-id]:checked")].map((el) => el.dataset.masterId);
+        markDirty();
+      });
+    });
+
+    document.getElementById("btn-cell-gen")?.addEventListener("click", () => {
+      syncDims();
+      if (cfg.order === "custom" && !cfg.customOrder.length) {
+        setStatus("Orden manual: haz clic en las celdas en el orden deseado, luego Generar.");
+        return;
+      }
+      regenerateCells(mode);
+      markDirty();
+      setStatus(`Celdas generadas: ${cfg.cells.length} (${cfg.rows}×${cfg.cols}, stride ${cfg.channelsPerCell}).`);
+      renderProps();
+      bindPropsHandlers();
+      renderTree();
+      updateTitle();
+      document.getElementById("status-counts").textContent = `${state.attributes.length} attrs · ${state.modes.length} modes`;
+    });
+
+    document.getElementById("btn-cell-clear")?.addEventListener("click", () => {
+      cfg.cells = [];
+      cfg.customOrder = [];
+      markDirty();
+      setStatus("Celdas limpiadas.");
+      renderProps();
+      bindPropsHandlers();
+    });
+
+    document.querySelectorAll("[data-cell-flat]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const flat = Number(btn.dataset.cellFlat);
+        if (cfg.order !== "custom") {
+          // Switch to custom and start painting from this click
+          cfg.order = "custom";
+          cfg.customOrder = [flat];
+          const orderSel = document.getElementById("cell-order");
+          if (orderSel) orderSel.value = "custom";
+          setStatus(`Orden manual: celda 1 = (${flat % cfg.cols},${Math.floor(flat / cfg.cols)}). Sigue haciendo clic.`);
+        } else {
+          const idx = cfg.customOrder.indexOf(flat);
+          if (idx >= 0) cfg.customOrder.splice(idx, 1);
+          else cfg.customOrder.push(flat);
+          setStatus(`Orden manual: ${cfg.customOrder.length} celdas seleccionadas.`);
+        }
+        markDirty();
+        // Live preview numbers without full regenerate
+        regenerateCells(mode);
+        renderProps();
+        bindPropsHandlers();
       });
     });
   }

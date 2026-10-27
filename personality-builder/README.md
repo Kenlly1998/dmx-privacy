@@ -30,8 +30,17 @@ Luego visita `http://localhost:8765/`.
 
 `samples/Demo_RGBWash.d4` — fixture demo propio (no es librería Avolites). Usa **Open…** para cargarlo.
 
+## Cells (cuadrícula)
+
+En un **Mode** → pestaña **Cells**:
+
+1. Define filas × columnas, canales por celda e inicio DMX.
+2. Elige orden: filas L→R / R→L, columnas, serpentine, o **manual (clic)**.
+3. **Generar** crea `Cell N` con `X`/`Y` y `ChannelOffset`.
+4. Marca Master attributes (RGB/Dimmer…) para el bloque `<Master>` del `.d4`.
+
 ## Fuera de alcance (MVP)
 
-Macros, Conditions / ColourFunc, cells/subfixtures, export R20/Vis, auto-macros.
+Macros, Conditions / ColourFunc, ModeLink a modos-hijo separados, export R20/Vis, auto-macros.
 
 Ver `NOTES.md` para el estudio y limitaciones de ejecución del programa original.
