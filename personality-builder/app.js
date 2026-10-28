@@ -424,7 +424,13 @@
           .split(",")
           .map(Number)
           .filter((n) => n > 0);
-        if (!parts.length && findAttr(inc.id)?.resolution !== "None") {
+        const isVirtualDimmer =
+          !parts.length &&
+          (inc.virtualControl ||
+            mode.includes.some((other) => other.virtualControl === inc.id) ||
+            (inc.id === "Dimmer" &&
+              mode.includes.some((other) => other.id !== "Dimmer" && other.channelOffset && other.virtualControl === "Dimmer")));
+        if (!parts.length && !isVirtualDimmer && findAttr(inc.id)?.resolution !== "None") {
           issues.push({ level: "warn", msg: `${mode.name}/${inc.id}: sin ChannelOffset.` });
         }
         for (const p of parts) {
@@ -450,7 +456,32 @@
 
     if (!state.attributes.length) issues.push({ level: "warn", msg: "Fixture sin atributos." });
     if (!state.modes.length) issues.push({ level: "warn", msg: "Fixture sin modes." });
-    if (!issues.length) issues.push({ level: "ok", msg: "Sin problemas detectados." });
+    else if (state.modes.every((m) => !Number(m.channels) && !m.includes.length && !m.cells?.cells?.length)) {
+      issues.push({ level: "warn", msg: "Hay modes pero ninguno tiene canales / includes / cells." });
+    }
+    for (const attr of state.attributes) {
+      if (attr.hasConditions) {
+        issues.push({
+          level: "warn",
+          msg: `${attr.id}: Condition/ColourFunc presente en el .d4 (lectura parcial; wizard Condition pendiente).`,
+        });
+      }
+    }
+    let virtualCount = 0;
+    for (const mode of state.modes) {
+      for (const inc of mode.includes) {
+        if (inc.virtualControl && !inc.channelOffset) virtualCount += 1;
+      }
+    }
+    if (virtualCount) {
+      issues.push({
+        level: "ok",
+        msg: `${virtualCount} include(s) con VirtualControl (dimmer virtual sin ChannelOffset).`,
+      });
+    }
+    if (!issues.some((i) => i.level === "error" || i.level === "warn")) {
+      if (!issues.length) issues.push({ level: "ok", msg: "Sin problemas detectados." });
+    }
     return issues;
   }
 
@@ -816,15 +847,16 @@
     next.manufacturer = root.getAttribute("Company") || "";
     next.name = root.getAttribute("Name") || "";
     next.shortName = root.getAttribute("ShortName") || next.name.slice(0, 10);
+    next.personalityVersion = root.getAttribute("Version") || next.personalityVersion || "0";
     for (const attrEl of root.querySelectorAll("Control > Attribute")) {
-      const functions = [...attrEl.querySelectorAll("Function")].map((fn, i) => ({
+      const functions = [...attrEl.querySelectorAll(":scope > Function")].map((fn, i) => ({
         id: fn.getAttribute("ID") || String(i + 1),
         name: fn.getAttribute("Name") || "",
         dmx: fn.getAttribute("Dmx") || "0~255",
         display: fn.getAttribute("Display") || fn.getAttribute("Name") || "",
         colour: fn.getAttribute("Colour") || undefined,
       }));
-      const locateEl = attrEl.querySelector("Locate");
+      const locateEl = attrEl.querySelector(":scope > Locate");
       const dmxSample = functions[0]?.dmx || "0~255";
       const is16 = dmxSample.split("~").some((v) => Number(v) > 255);
       const id = attrEl.getAttribute("ID") || `Attr${next.attributes.length + 1}`;
@@ -839,13 +871,15 @@
         resolution: is16 ? "16-bit" : "8-bit",
         functions,
         locate: locateEl?.getAttribute("Locate") || "1:100",
+        hasConditions: !!attrEl.querySelector(":scope > Condition"),
       });
     }
     for (const modeEl of root.querySelectorAll(":scope > Mode")) {
-      const includes = [...modeEl.querySelectorAll("Include > Attribute")].map((a) => ({
+      const includes = [...modeEl.querySelectorAll(":scope > Include > Attribute")].map((a) => ({
         id: a.getAttribute("ID") || "",
         channelOffset: a.getAttribute("ChannelOffset") || "",
         wheel: a.getAttribute("Wheel") || "",
+        virtualControl: a.getAttribute("VirtualControl") || "",
       }));
       const cellsCfg = createEmptyCells();
       const cellsRoot = modeEl.querySelector(":scope > Cells");
@@ -858,6 +892,11 @@
           x: Number(el.getAttribute("X") || 0),
           y: Number(el.getAttribute("Y") || 0),
           channelOffset: el.getAttribute("ChannelOffset") || String(i + 1),
+          modeLink: el.getAttribute("ModeLink") || "",
+          links: [...el.querySelectorAll("AttributeLink")].map((l) => ({
+            sourceId: l.getAttribute("SourceId") || "",
+            targetId: l.getAttribute("TargetId") || "",
+          })),
           orderIndex: i + 1,
         }));
         if (cellEls[0]) cellsCfg.modeLink = cellEls[0].getAttribute("ModeLink") || cellsCfg.modeLink;
@@ -886,8 +925,17 @@
     state = next;
     selection = { kind: "fixture" };
     dirty = false;
-    setStatus(`Abierto: ${state.manufacturer} / ${state.name}`);
+    const condAttrs = state.attributes.filter((a) => a.hasConditions).length;
+    const cellModes = state.modes.filter((m) => m.cells?.cells?.length).length;
+    const virt = state.modes.reduce((n, m) => n + m.includes.filter((i) => i.virtualControl).length, 0);
+    setStatus(
+      `Abierto: ${state.manufacturer} / ${state.name}` +
+        (condAttrs || cellModes || virt
+          ? ` · ${cellModes ? `${cellModes} mode(s) con cells` : ""}${condAttrs ? `${cellModes ? ", " : ""}${condAttrs} attr con Condition` : ""}${virt ? `${cellModes || condAttrs ? ", " : ""}${virt} VirtualControl` : ""}`
+          : "")
+    );
     render();
+    scheduleLint();
   }
 
   function newFixture() {
@@ -898,6 +946,7 @@
     dirty = false;
     setStatus("Nuevo fixture (File → New).");
     render();
+    scheduleLint();
   }
 
   function renderTree() {

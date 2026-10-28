@@ -33,8 +33,39 @@ Fixture properties: Display Name, Manufacturer, Name, Personality Version, Tags,
 
 Attribute mapping: Group, Maximum Resolution, Bank, Page, Wheel (+ Attribute ID / Name).
 
+## Corpus `.d4` (personalities.avolites.com)
+
+Fuente pública: [Avolites Personality Library](https://personalities.avolites.com/) — listados por fabricante + `ViewPersonality.aspx?FileID=…&source=true` (XML completo en textarea). La descarga directa `/PersonalityFiles/Downloads/d4/*.d4` responde **404**; el instalador Compact Titan (~604 MB) sigue disponible.
+
+**No redistribuimos** personalities oficiales en el repo. Estudio local en `/tmp/avo-d4-study` + muestras Generic previas.
+
+### Hallazgos (≈135 fixtures parseados)
+
+| Elemento | Observación |
+| --- | --- |
+| Groups | C ≫ I ≫ E ≫ S ≫ G ≫ P ≫ B |
+| Modes | 1–512 ch (mediana ~8); muchos fixtures con varios modos |
+| `ChannelOffset` | `"1"` 8-bit, `"1,2"` 16-bit Pan/Tilt |
+| `VirtualControl` | Dimmer sin offset; RGB llevan `VirtualControl="Dimmer"` (p.ej. Generic RGB 3 DMX) |
+| `Condition` / `Else` | ColourFunc/GoboFunc: `If="'Colour1Func'==1"` + IDs de Function |
+| `Cells` | `Master` + `Cell` con `X`/`Y`/`ChannelOffset`/`ModeLink` + `AttributeLink SourceId/TargetId` |
+| Extras | Palettes (~70%), AtlaBase, Macros, Swatch/Thumbnail |
+
+### Eurolite / “Stormi”
+
+- **Eurolite Stormi**: no aparece en el catálogo Eurolite (366 fixtures). El `.d4` subido por el usuario era un stub vacío (`Fixture 1` / `Unknown`).
+- Cercanos por nombre: **Art Wizard / STORMI 3000CC LED** (FileID 47198) — 14 attrs, 8 modes, 2 con cells (18/25 DMX); **Taurus / STORMI 5000CC**.
+- Eurolite útiles para referencia: LED IP T-Bar 16 QCL, LED TMH-W375 (cells 25), TMH BSW-380 (Condition + Colour1Func/GoboFunc).
+
+### Gaps de la réplica vs corpus real
+
+1. Wizard **Condition** (ColourFunc / GoboFunc) — hoy solo aviso en linter.
+2. Export/import completo de **AttributeLink**, **ModeLink** a modos-celda, **VirtualControl**.
+3. Palettes / Macros / Swatch / AtlaBase.
+4. Locate extendido (`PowerOn`, `Highlight`, `Lowlight`).
+
 ## Réplica
 
-`catalog.json` deriva IDs/nombres/grupos/wheels observados (interop). No se redistribuye el MSI ni `Standard.d4t` binario/plantilla completa de Avolites.
+`catalog.json` deriva IDs/nombres/grupos/wheels observados (interop). No se redistribuye el MSI ni `Standard.d4t` ni `.d4` oficiales de Avolites.
 
-Capturas en `/opt/cursor/artifacts/screenshots/avolites-pb-*.png`.
+Capturas en `/opt/cursor/artifacts/screenshots/`.
