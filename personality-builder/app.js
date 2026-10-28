@@ -58,8 +58,26 @@
   let selection = { kind: "fixture" };
   let catalogTab = "attributes";
   let propsTab = "properties";
-  let statusMsg = "Listo.";
+  let statusMsg = "";
   let dirty = false;
+  /** UI state for DMX range sequencer (per session, not persisted). */
+  let seqUi = {
+    attrId: null,
+    start: 0,
+    step: 10,
+    ceiling: 255,
+    mode: "contiguous",
+    gap: 1,
+    selected: new Set(),
+  };
+
+  function t(key, vars) {
+    return window.PB_I18N?.t?.(key, vars) ?? key;
+  }
+
+  function refreshI18nDom() {
+    window.PB_I18N?.applyDom?.();
+  }
 
   function createEmptyFixture() {
     return {
@@ -156,12 +174,69 @@
   function setStatus(msg) {
     statusMsg = msg;
     const el = document.getElementById("status-text");
-    if (el) el.textContent = msg;
+    if (el) {
+      el.removeAttribute("data-i18n");
+      el.textContent = msg;
+    }
   }
 
   function setHelp(text) {
     const el = document.getElementById("help-bar");
-    if (el) el.textContent = text;
+    if (el) {
+      el.removeAttribute("data-i18n");
+      el.textContent = text;
+    }
+  }
+
+  function updateStatusCounts() {
+    const el = document.getElementById("status-counts");
+    if (el) el.textContent = t("status.counts", { attrs: state.attributes.length, modes: state.modes.length });
+  }
+
+  function ensureSeqUiForAttr(attr) {
+    if (!attr) return;
+    if (seqUi.attrId !== attr.id) {
+      seqUi.attrId = attr.id;
+      seqUi.selected = new Set(attr.functions.map((_, i) => i));
+      const ceiling = attr.resolution === "16-bit" ? 65535 : 255;
+      seqUi.ceiling = ceiling;
+      if (seqUi.step > ceiling + 1) seqUi.step = Math.min(10, ceiling + 1) || 1;
+    } else {
+      const max = attr.functions.length;
+      seqUi.selected = new Set([...seqUi.selected].filter((i) => i >= 0 && i < max));
+    }
+  }
+
+  /**
+   * Build Start/End ranges for selected function indices.
+   * Width = step; contiguous next = end+1; gap next = end+1+gap; single start=end, next=start+1.
+   */
+  function computeSeqRanges(indices, opts) {
+    const start = Math.max(0, Number(opts.start) || 0);
+    const step = Math.max(1, Number(opts.step) || 1);
+    const ceiling = Math.max(0, Number(opts.ceiling) || 0);
+    const gap = Math.max(0, Number(opts.gap) || 0);
+    const mode = opts.mode || "contiguous";
+    const ordered = [...indices].sort((a, b) => a - b);
+    const ranges = [];
+    let cursor = start;
+    let overflow = false;
+    for (const index of ordered) {
+      let lo;
+      let hi;
+      if (mode === "single") {
+        lo = cursor;
+        hi = cursor;
+        cursor = lo + 1;
+      } else {
+        lo = cursor;
+        hi = cursor + step - 1;
+        cursor = hi + 1 + (mode === "gap" ? gap : 0);
+      }
+      if (hi > ceiling || lo > ceiling) overflow = true;
+      ranges.push({ index, start: lo, end: hi });
+    }
+    return { ranges, overflow, ceiling, next: cursor };
   }
 
   function esc(s) {
@@ -514,9 +589,32 @@
       updateChannelPreview("it");
       document.getElementById("it-name")?.focus();
     }
+    if (id === "modal-settings") {
+      fillSettingsLangSelect();
+      document.getElementById("settings-lang")?.focus();
+    }
   }
   function closeModal(id) {
     document.getElementById(id)?.setAttribute("hidden", "");
+  }
+
+  function fillSettingsLangSelect() {
+    const sel = document.getElementById("settings-lang");
+    if (!sel || !window.PB_I18N) return;
+    const current = window.PB_I18N.getLang();
+    sel.innerHTML = window.PB_I18N.LANGS.map(
+      (l) => `<option value="${esc(l.id)}" ${l.id === current ? "selected" : ""}>${esc(l.native)}</option>`
+    ).join("");
+  }
+
+  function applyLanguage(next) {
+    if (!window.PB_I18N) return;
+    window.PB_I18N.setLang(next);
+    refreshI18nDom();
+    const langMeta = window.PB_I18N.LANGS.find((l) => l.id === next);
+    setStatus(t("settings.saved", { lang: langMeta?.native || next }));
+    render();
+    refreshI18nDom();
   }
 
   function channelPreviewRows(text) {
@@ -585,18 +683,16 @@
   }
 
   function creationHero(opts = {}) {
-    const title = opts.title || "Empieza por el patch";
-    const body =
-      opts.body ||
-      "Crea el modo desde los canales del manual, o importa una tabla CSV. También puedes añadir atributos desde la biblioteca.";
+    const title = opts.title || t("hero.title");
+    const body = opts.body || t("hero.body");
     return `
       <div class="empty-hero">
-        <p class="eyebrow">Flujo recomendado</p>
+        <p class="eyebrow">${esc(t("hero.eyebrow"))}</p>
         <h3>${esc(title)}</h3>
         <p>${esc(body)}</p>
         <div class="empty-actions">
-          <button type="button" class="btn accent" data-open-mf>Crear modo</button>
-          <button type="button" class="btn ghost" data-open-it>Importar tabla</button>
+          <button type="button" class="btn accent" data-open-mf>${esc(t("hero.createMode"))}</button>
+          <button type="button" class="btn ghost" data-open-it>${esc(t("hero.importTable"))}</button>
         </div>
       </div>`;
   }
@@ -1242,14 +1338,27 @@
   }
 
   function renderDmxTab() {
-    if (selection.kind !== "attribute") return `<p class="empty">Selecciona un atributo para editar DMX Values.</p>`;
+    if (selection.kind !== "attribute") return `<p class="empty">${esc(t("dmx.selectAttr"))}</p>`;
     const a = findAttr(selection.id);
     if (!a) return "";
+    ensureSeqUiForAttr(a);
     setHelp("DMX Values: function ranges for this attribute.");
+    const gapHidden = seqUi.mode === "gap" ? "" : "hidden";
+    const fnChecks = a.functions
+      .map((fn, i) => {
+        const checked = seqUi.selected.has(i) ? "checked" : "";
+        return `<label class="seq-fn-item">
+          <input type="checkbox" data-seq-i="${i}" ${checked} />
+          <span class="seq-fn-name">${esc(fn.name)}</span>
+          <span class="seq-fn-range">${esc(fn.dmx)}</span>
+        </label>`;
+      })
+      .join("");
     const rows = a.functions
       .map(
         (fn, i) => `
       <tr>
+        <td class="col-sel"><input type="checkbox" data-seq-i="${i}" ${seqUi.selected.has(i) ? "checked" : ""} aria-label="select" /></td>
         <td><input data-dmx-i="${i}" data-f="name" value="${esc(fn.name)}" /></td>
         <td><input data-dmx-i="${i}" data-f="start" value="${esc(fn.dmx.split("~")[0] || "0")}" /></td>
         <td><input data-dmx-i="${i}" data-f="end" value="${esc(fn.dmx.split("~")[1] || "255")}" /></td>
@@ -1259,12 +1368,39 @@
       .join("");
     return `
       <div class="toolbar">
-        <button type="button" id="btn-add-fn">+ Function</button>
-        <button type="button" id="btn-del-fn">Eliminar última</button>
+        <button type="button" id="btn-add-fn">${esc(t("dmx.addFn"))}</button>
+        <button type="button" id="btn-del-fn">${esc(t("dmx.delFn"))}</button>
+      </div>
+      <div class="seq-panel" id="seq-panel">
+        <div class="seq-head">
+          <strong>${esc(t("seq.title"))}</strong>
+          <p class="seq-hint">${esc(t("seq.hint"))}</p>
+        </div>
+        <div class="seq-controls">
+          <label>${esc(t("seq.start"))}<input id="seq-start" type="number" min="0" value="${seqUi.start}" /></label>
+          <label>${esc(t("seq.step"))}<input id="seq-step" type="number" min="1" value="${seqUi.step}" /></label>
+          <label>${esc(t("seq.ceiling"))}<input id="seq-ceiling" type="number" min="0" value="${seqUi.ceiling}" /></label>
+          <label>${esc(t("seq.mode"))}
+            <select id="seq-mode">
+              <option value="contiguous" ${seqUi.mode === "contiguous" ? "selected" : ""}>${esc(t("seq.mode.contiguous"))}</option>
+              <option value="gap" ${seqUi.mode === "gap" ? "selected" : ""}>${esc(t("seq.mode.gap"))}</option>
+              <option value="single" ${seqUi.mode === "single" ? "selected" : ""}>${esc(t("seq.mode.single"))}</option>
+            </select>
+          </label>
+          <label class="seq-gap-wrap" ${gapHidden}>${esc(t("seq.gap"))}<input id="seq-gap" type="number" min="0" value="${seqUi.gap}" /></label>
+        </div>
+        <div class="seq-actions">
+          <button type="button" class="btn ghost" id="seq-all">${esc(t("seq.selectAll"))}</button>
+          <button type="button" class="btn ghost" id="seq-none">${esc(t("seq.selectNone"))}</button>
+          <button type="button" class="btn ghost" id="seq-preview-btn">${esc(t("seq.preview"))}</button>
+          <button type="button" class="btn accent" id="seq-apply">${esc(t("seq.apply"))}</button>
+        </div>
+        <div class="seq-fn-list">${fnChecks || `<span class="empty">${esc(t("dmx.empty"))}</span>`}</div>
+        <div class="seq-preview" id="seq-preview" aria-live="polite"></div>
       </div>
       <table class="dmx-table">
-        <thead><tr><th>Name</th><th>Start DMX</th><th>End DMX</th><th>Wheel Display</th></tr></thead>
-        <tbody>${rows || `<tr><td colspan="4" class="empty">Sin functions</td></tr>`}</tbody>
+        <thead><tr><th class="col-sel"></th><th>${esc(t("dmx.col.name"))}</th><th>${esc(t("dmx.col.start"))}</th><th>${esc(t("dmx.col.end"))}</th><th>${esc(t("dmx.col.display"))}</th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="5" class="empty">${esc(t("dmx.empty"))}</td></tr>`}</tbody>
       </table>`;
   }
 
@@ -1428,6 +1564,7 @@
       const attr = findAttr(selection.id);
       if (!attr) return;
       attr.functions.push({ id: String(attr.functions.length + 1), name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255" });
+      seqUi.selected.add(attr.functions.length - 1);
       markDirty();
       renderProps();
       bindPropsHandlers();
@@ -1436,10 +1573,13 @@
       const attr = findAttr(selection.id);
       if (!attr?.functions.length) return;
       attr.functions.pop();
+      seqUi.selected.delete(attr.functions.length);
       markDirty();
       renderProps();
       bindPropsHandlers();
     });
+
+    bindSeqHandlers();
 
     document.querySelectorAll("[data-ch-i]").forEach((input) => {
       input.addEventListener("change", () => {
@@ -1465,6 +1605,130 @@
     });
 
     bindCellsHandlers();
+  }
+
+  function readSeqControlsIntoUi() {
+    const start = document.getElementById("seq-start");
+    const step = document.getElementById("seq-step");
+    const ceiling = document.getElementById("seq-ceiling");
+    const mode = document.getElementById("seq-mode");
+    const gap = document.getElementById("seq-gap");
+    if (start) seqUi.start = Math.max(0, Number(start.value) || 0);
+    if (step) seqUi.step = Math.max(1, Number(step.value) || 1);
+    if (ceiling) seqUi.ceiling = Math.max(0, Number(ceiling.value) || 0);
+    if (mode) seqUi.mode = mode.value || "contiguous";
+    if (gap) seqUi.gap = Math.max(0, Number(gap.value) || 0);
+    const gapWrap = document.querySelector(".seq-gap-wrap");
+    if (gapWrap) {
+      if (seqUi.mode === "gap") gapWrap.removeAttribute("hidden");
+      else gapWrap.setAttribute("hidden", "");
+    }
+  }
+
+  function syncSeqSelectionFromDom() {
+    seqUi.selected = new Set(
+      [...document.querySelectorAll("[data-seq-i]:checked")].map((el) => Number(el.dataset.seqI))
+    );
+  }
+
+  function updateSeqPreview() {
+    const el = document.getElementById("seq-preview");
+    if (!el) return;
+    readSeqControlsIntoUi();
+    syncSeqSelectionFromDom();
+    const attr = findAttr(selection.id);
+    if (!attr) {
+      el.textContent = "";
+      return;
+    }
+    if (!seqUi.selected.size) {
+      el.className = "seq-preview warn";
+      el.textContent = t("seq.noneSelected");
+      return;
+    }
+    const { ranges, overflow, ceiling } = computeSeqRanges([...seqUi.selected], seqUi);
+    const lines = ranges.map((r) => {
+      const name = attr.functions[r.index]?.name || `#${r.index}`;
+      return `${name}: ${r.start}~${r.end}`;
+    });
+    if (overflow) {
+      el.className = "seq-preview warn";
+      el.textContent = `${t("seq.overflow", { ceiling })}\n${lines.join("\n")}`;
+    } else {
+      el.className = "seq-preview ok";
+      el.textContent = lines.join("\n");
+    }
+  }
+
+  function applySeqRanges() {
+    const attr = findAttr(selection.id);
+    if (!attr) return;
+    readSeqControlsIntoUi();
+    syncSeqSelectionFromDom();
+    if (!seqUi.selected.size) {
+      setStatus(t("seq.noneSelected"));
+      updateSeqPreview();
+      return;
+    }
+    const { ranges, overflow, ceiling } = computeSeqRanges([...seqUi.selected], seqUi);
+    for (const r of ranges) {
+      const fn = attr.functions[r.index];
+      if (!fn) continue;
+      fn.dmx = `${r.start}~${r.end}`;
+    }
+    markDirty();
+    if (overflow) setStatus(t("seq.overflow", { ceiling }));
+    else setStatus(t("seq.applied", { n: ranges.length }));
+    renderProps();
+    bindPropsHandlers();
+  }
+
+  function bindSeqHandlers() {
+    if (propsTab !== "dmx" || selection.kind !== "attribute") return;
+    if (!document.getElementById("seq-panel")) return;
+
+    const refresh = () => updateSeqPreview();
+
+    ["seq-start", "seq-step", "seq-ceiling", "seq-mode", "seq-gap"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener("input", refresh);
+      el.addEventListener("change", refresh);
+    });
+
+    document.querySelectorAll("[data-seq-i]").forEach((cb) => {
+      cb.addEventListener("change", () => {
+        const i = Number(cb.dataset.seqI);
+        // Keep table + list checkboxes in sync
+        document.querySelectorAll(`[data-seq-i="${i}"]`).forEach((el) => {
+          el.checked = cb.checked;
+        });
+        refresh();
+      });
+    });
+
+    document.getElementById("seq-all")?.addEventListener("click", () => {
+      const attr = findAttr(selection.id);
+      if (!attr) return;
+      seqUi.selected = new Set(attr.functions.map((_, i) => i));
+      document.querySelectorAll("[data-seq-i]").forEach((el) => {
+        el.checked = true;
+      });
+      refresh();
+    });
+
+    document.getElementById("seq-none")?.addEventListener("click", () => {
+      seqUi.selected = new Set();
+      document.querySelectorAll("[data-seq-i]").forEach((el) => {
+        el.checked = false;
+      });
+      refresh();
+    });
+
+    document.getElementById("seq-preview-btn")?.addEventListener("click", refresh);
+    document.getElementById("seq-apply")?.addEventListener("click", applySeqRanges);
+
+    updateSeqPreview();
   }
 
   function bindCellsHandlers() {
@@ -1526,7 +1790,7 @@
       bindPropsHandlers();
       renderTree();
       updateTitle();
-      document.getElementById("status-counts").textContent = `${state.attributes.length} attrs · ${state.modes.length} modes`;
+      updateStatusCounts();
     });
 
     document.getElementById("btn-cell-clear")?.addEventListener("click", () => {
@@ -1576,8 +1840,17 @@
     renderProps();
     bindPropsHandlers();
     updateTitle();
-    document.getElementById("status-text").textContent = statusMsg;
-    document.getElementById("status-counts").textContent = `${state.attributes.length} attrs · ${state.modes.length} modes`;
+    const statusEl = document.getElementById("status-text");
+    if (statusEl) {
+      if (statusMsg) {
+        statusEl.removeAttribute("data-i18n");
+        statusEl.textContent = statusMsg;
+      } else {
+        statusEl.setAttribute("data-i18n", "status.ready");
+        statusEl.textContent = t("status.ready");
+      }
+    }
+    updateStatusCounts();
   }
 
   function onTreeClick(e) {
@@ -1660,12 +1933,20 @@
     document.getElementById("btn-mode-first")?.addEventListener("click", () => openModal("modal-mode-first"));
     document.getElementById("btn-quick-create")?.addEventListener("click", () => openModal("modal-mode-first"));
     document.getElementById("btn-import-table")?.addEventListener("click", () => openModal("modal-import-table"));
+    document.getElementById("btn-settings")?.addEventListener("click", () => openModal("modal-settings"));
     document.getElementById("btn-run-lint")?.addEventListener("click", () => {
       const issues = runLinter();
       renderLint(issues);
       const err = issues.filter((i) => i.level === "error").length;
       const warn = issues.filter((i) => i.level === "warn").length;
       setStatus(err ? `Linter: ${err} errores, ${warn} avisos` : warn ? `Linter: ${warn} avisos` : "Linter OK");
+    });
+
+    const closeSettings = () => closeModal("modal-settings");
+    document.getElementById("settings-cancel")?.addEventListener("click", closeSettings);
+    document.getElementById("settings-close")?.addEventListener("click", closeSettings);
+    document.getElementById("settings-lang")?.addEventListener("change", (e) => {
+      applyLanguage(e.target.value);
     });
 
     const closeMf = () => closeModal("modal-mode-first");
@@ -1711,6 +1992,7 @@
       if (e.key === "Escape") {
         closeModal("modal-mode-first");
         closeModal("modal-import-table");
+        closeModal("modal-settings");
         return;
       }
       if (!(e.ctrlKey || e.metaKey)) return;
@@ -1756,6 +2038,8 @@
   }
 
   async function boot() {
+    refreshI18nDom();
+    fillSettingsLangSelect();
     try {
       const res = await fetch("catalog.json");
       if (res.ok) {
@@ -1776,6 +2060,7 @@
     }
     wire();
     render();
+    refreshI18nDom();
     scheduleLint();
   }
 

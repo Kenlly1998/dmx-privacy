@@ -464,6 +464,179 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .toolbar button:hover { border-color: var(--accent); }
 
+/* Range sequencer (DMX Values) */
+.seq-panel {
+  margin: 10px;
+  padding: 12px;
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(240, 162, 2, 0.06), transparent 40%),
+    rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.seq-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.seq-head strong {
+  font-size: 13px;
+  letter-spacing: -0.01em;
+  color: var(--accent-strong);
+}
+
+.seq-hint {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.seq-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+}
+
+.seq-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.seq-controls input,
+.seq-controls select {
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  padding: 6px 8px;
+  min-width: 72px;
+  background: var(--bg-elevated);
+}
+
+.seq-controls .seq-gap-wrap[hidden] {
+  display: none !important;
+}
+
+.seq-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.seq-fn-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 140px;
+  overflow: auto;
+  padding: 6px;
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.seq-fn-item {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.seq-fn-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.seq-fn-item input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.seq-fn-item .seq-fn-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seq-fn-item .seq-fn-range {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.seq-preview {
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-dim);
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px dashed var(--stroke-strong);
+  background: rgba(0, 0, 0, 0.22);
+  min-height: 36px;
+  white-space: pre-wrap;
+}
+
+.seq-preview.warn {
+  color: #ffd27a;
+  border-color: rgba(224, 165, 58, 0.55);
+  background: rgba(224, 165, 58, 0.1);
+}
+
+.seq-preview.ok {
+  color: #7dffb2;
+  border-color: rgba(61, 190, 122, 0.4);
+}
+
+.dmx-table th.col-sel,
+.dmx-table td.col-sel {
+  width: 36px;
+  text-align: center;
+  padding: 4px;
+}
+
+.dmx-table td.col-sel input {
+  width: auto;
+  accent-color: var(--accent);
+}
+
+/* Settings modal */
+.modal-settings {
+  width: min(420px, calc(100vw - 24px));
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.settings-field select {
+  border: 1px solid var(--stroke);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.settings-help {
+  font-size: 12px;
+}
+
 .empty {
   padding: 16px;
   color: var(--text-dim);

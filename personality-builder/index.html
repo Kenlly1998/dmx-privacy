@@ -16,17 +16,18 @@
         <div class="brand-mark" aria-hidden="true"></div>
         <div class="brand-text">
           <strong>Personality Builder</strong>
-          <span>Réplica · .d4 Titan</span>
+          <span data-i18n="brand.sub">Réplica · .d4 Titan</span>
         </div>
       </div>
       <div class="fixture-chip" id="title-fixture">Fixture 1</div>
       <div class="top-actions">
-        <button type="button" class="btn ghost" id="btn-new" title="Ctrl+N">Nuevo</button>
-        <button type="button" class="btn ghost" id="btn-import" title="Ctrl+O">Abrir</button>
-        <button type="button" class="btn primary" id="btn-export" title="Ctrl+S">Guardar .d4</button>
-        <button type="button" class="btn accent" id="btn-mode-first">Crear modo</button>
-        <button type="button" class="btn ghost" id="btn-import-table">Importar tabla</button>
-        <button type="button" class="btn ghost" id="btn-run-lint">Linter</button>
+        <button type="button" class="btn ghost" id="btn-new" title="Ctrl+N" data-i18n="btn.new">Nuevo</button>
+        <button type="button" class="btn ghost" id="btn-import" title="Ctrl+O" data-i18n="btn.open">Abrir</button>
+        <button type="button" class="btn primary" id="btn-export" title="Ctrl+S" data-i18n="btn.save">Guardar .d4</button>
+        <button type="button" class="btn accent" id="btn-mode-first" data-i18n="btn.createMode">Crear modo</button>
+        <button type="button" class="btn ghost" id="btn-import-table" data-i18n="btn.importTable">Importar tabla</button>
+        <button type="button" class="btn ghost" id="btn-run-lint" data-i18n="btn.lint">Linter</button>
+        <button type="button" class="btn ghost" id="btn-settings" data-i18n="btn.settings" data-i18n-title="btn.settings">Ajustes</button>
       </div>
       <input type="file" id="file-import" accept=".d4,.xml,text/xml" class="hidden" />
       <input type="file" id="file-csv" accept=".csv,.tsv,.txt,text/csv,text/plain" class="hidden" />
@@ -35,8 +36,8 @@
     <div class="workspace">
       <aside class="nav-pane" id="nav-pane">
         <div class="pane-header">
-          <span>Fixture</span>
-          <button type="button" class="btn tiny" id="btn-quick-create" title="Crear desde canales">+</button>
+          <span data-i18n="pane.fixture">Fixture</span>
+          <button type="button" class="btn tiny" id="btn-quick-create" title="Crear desde canales" data-i18n-title="btn.createMode">+</button>
         </div>
         <div class="pane-body">
           <ul class="tree" id="tree"></ul>
@@ -45,43 +46,43 @@
 
       <section class="catalog-pane">
         <div class="pane-header">
-          <span>Biblioteca</span>
+          <span data-i18n="pane.library">Biblioteca</span>
         </div>
         <div class="tabs" id="catalog-tabs">
-          <button type="button" data-tab="attributes" class="active">Attributes</button>
-          <button type="button" data-tab="functions">Functions</button>
-          <button type="button" data-tab="created">Created</button>
-          <button type="button" data-tab="modes">Modes</button>
-          <button type="button" data-tab="current">Current Fn</button>
-          <button type="button" data-tab="macros">Macros</button>
-          <button type="button" data-tab="palettes">Palettes</button>
-          <button type="button" data-tab="swatch">Swatch</button>
-          <button type="button" data-tab="history">History</button>
+          <button type="button" data-tab="attributes" class="active" data-i18n="tab.attributes">Attributes</button>
+          <button type="button" data-tab="functions" data-i18n="tab.functions">Functions</button>
+          <button type="button" data-tab="created" data-i18n="tab.created">Created</button>
+          <button type="button" data-tab="modes" data-i18n="tab.modes">Modes</button>
+          <button type="button" data-tab="current" data-i18n="tab.current">Current Fn</button>
+          <button type="button" data-tab="macros" data-i18n="tab.macros">Macros</button>
+          <button type="button" data-tab="palettes" data-i18n="tab.palettes">Palettes</button>
+          <button type="button" data-tab="swatch" data-i18n="tab.swatch">Swatch</button>
+          <button type="button" data-tab="history" data-i18n="tab.history">History</button>
         </div>
         <div class="pane-body" id="catalog-body"></div>
       </section>
 
       <section class="props-pane">
         <div class="pane-header">
-          <span>Inspector</span>
+          <span data-i18n="pane.inspector">Inspector</span>
         </div>
         <div class="tabs" id="props-tabs">
-          <button type="button" data-tab="properties" class="active">Properties</button>
-          <button type="button" data-tab="dmx">DMX Values</button>
-          <button type="button" data-tab="channels">Channels</button>
-          <button type="button" data-tab="wheels">Wheels</button>
-          <button type="button" data-tab="locate">Locate</button>
-          <button type="button" data-tab="cells">Cells</button>
+          <button type="button" data-tab="properties" class="active" data-i18n="tab.properties">Properties</button>
+          <button type="button" data-tab="dmx" data-i18n="tab.dmx">DMX Values</button>
+          <button type="button" data-tab="channels" data-i18n="tab.channels">Channels</button>
+          <button type="button" data-tab="wheels" data-i18n="tab.wheels">Wheels</button>
+          <button type="button" data-tab="locate" data-i18n="tab.locate">Locate</button>
+          <button type="button" data-tab="cells" data-i18n="tab.cells">Cells</button>
         </div>
         <div class="pane-body" id="props-body"></div>
-        <div class="help-bar" id="help-bar">Define el fixture o crea un modo desde el manual.</div>
+        <div class="help-bar" id="help-bar" data-i18n="help.default">Define el fixture o crea un modo desde el manual.</div>
       </section>
     </div>
 
     <div class="lint-bar" id="lint-bar" hidden></div>
 
     <footer class="status">
-      <span id="status-text">Listo.</span>
+      <span id="status-text" data-i18n="status.ready">Listo.</span>
       <span id="status-counts">0 attrs · 0 modes</span>
     </footer>
   </div>
@@ -90,28 +91,28 @@
     <div class="modal modal-wide" role="dialog" aria-labelledby="mf-title">
       <header class="modal-head">
         <div>
-          <p class="eyebrow">Creación rápida</p>
-          <h3 id="mf-title">Mode-first desde canales</h3>
+          <p class="eyebrow" data-i18n="mf.eyebrow">Creación rápida</p>
+          <h3 id="mf-title" data-i18n="mf.title">Mode-first desde canales</h3>
         </div>
-        <button type="button" class="btn icon" id="mf-cancel" aria-label="Cerrar">×</button>
+        <button type="button" class="btn icon" id="mf-cancel" aria-label="Cerrar" data-i18n-aria="settings.close">×</button>
       </header>
-      <p class="lede">Escribe el patch del manual en orden DMX. Verás la vista previa antes de crear atributos y el modo.</p>
+      <p class="lede" data-i18n="mf.lede">Escribe el patch del manual en orden DMX. Verás la vista previa antes de crear atributos y el modo.</p>
       <div class="modal-grid">
         <div class="modal-col">
-          <label>Nombre del modo <input id="mf-name" value="Mode 1" /></label>
-          <label class="grow">Canales
+          <label><span data-i18n="mf.modeName">Nombre del modo</span> <input id="mf-name" value="Mode 1" /></label>
+          <label class="grow"><span data-i18n="mf.channels">Canales</span>
             <textarea id="mf-channels" rows="14" placeholder="1,Dimmer,8&#10;2,Red,8&#10;3,Green,8&#10;4,Blue,8&#10;5,Pan,16&#10;7,Tilt,16"></textarea>
           </label>
           <div class="chip-row">
-            <button type="button" class="chip" data-mf-preset="rgb">RGB + Dimmer</button>
-            <button type="button" class="chip" data-mf-preset="spot">Spot 16-bit</button>
-            <button type="button" class="chip" data-mf-preset="wash">Wash RGBW</button>
+            <button type="button" class="chip" data-mf-preset="rgb" data-i18n="mf.preset.rgb">RGB + Dimmer</button>
+            <button type="button" class="chip" data-mf-preset="spot" data-i18n="mf.preset.spot">Spot 16-bit</button>
+            <button type="button" class="chip" data-mf-preset="wash" data-i18n="mf.preset.wash">Wash RGBW</button>
           </div>
         </div>
         <div class="modal-col">
           <div class="preview-card">
             <div class="preview-head">
-              <strong>Vista previa</strong>
+              <strong data-i18n="mf.preview">Vista previa</strong>
               <span id="mf-preview-meta">0 canales</span>
             </div>
             <div class="preview-table-wrap">
@@ -124,8 +125,8 @@
         </div>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn ghost" id="mf-cancel-2">Cancelar</button>
-        <button type="button" class="btn primary" id="mf-apply">Crear modo + atributos</button>
+        <button type="button" class="btn ghost" id="mf-cancel-2" data-i18n="mf.cancel">Cancelar</button>
+        <button type="button" class="btn primary" id="mf-apply" data-i18n="mf.apply">Crear modo + atributos</button>
       </div>
     </div>
   </div>
@@ -134,24 +135,24 @@
     <div class="modal modal-wide" role="dialog" aria-labelledby="it-title">
       <header class="modal-head">
         <div>
-          <p class="eyebrow">Desde el manual</p>
-          <h3 id="it-title">Importar tabla de canales</h3>
+          <p class="eyebrow" data-i18n="it.eyebrow">Desde el manual</p>
+          <h3 id="it-title" data-i18n="it.title">Importar tabla de canales</h3>
         </div>
-        <button type="button" class="btn icon" id="it-cancel" aria-label="Cerrar">×</button>
+        <button type="button" class="btn icon" id="it-cancel" aria-label="Cerrar" data-i18n-aria="settings.close">×</button>
       </header>
-      <p class="lede">Pega CSV/TSV o abre un archivo. Columnas: canal, atributo, resolución, functions.</p>
+      <p class="lede" data-i18n="it.lede">Pega CSV/TSV o abre un archivo. Columnas: canal, atributo, resolución, functions.</p>
       <div class="modal-grid">
         <div class="modal-col">
-          <label>Nombre del modo <input id="it-name" value="From manual" /></label>
-          <label class="grow">Tabla
+          <label><span data-i18n="it.modeName">Nombre del modo</span> <input id="it-name" value="From manual" /></label>
+          <label class="grow"><span data-i18n="it.table">Tabla</span>
             <textarea id="it-text" rows="14" placeholder="Ch,Attribute,Res,Functions&#10;1,Dimmer,8,0-255 Dimmer&#10;2,Red,8,0-255&#10;3,Green,8,0-255&#10;4,Blue,8,0-255"></textarea>
           </label>
-          <button type="button" class="btn ghost" id="it-file">Abrir CSV…</button>
+          <button type="button" class="btn ghost" id="it-file" data-i18n="it.file">Abrir CSV…</button>
         </div>
         <div class="modal-col">
           <div class="preview-card">
             <div class="preview-head">
-              <strong>Vista previa</strong>
+              <strong data-i18n="it.preview">Vista previa</strong>
               <span id="it-preview-meta">0 filas</span>
             </div>
             <div class="preview-table-wrap">
@@ -164,12 +165,33 @@
         </div>
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn ghost" id="it-cancel-2">Cancelar</button>
-        <button type="button" class="btn primary" id="it-apply">Importar</button>
+        <button type="button" class="btn ghost" id="it-cancel-2" data-i18n="it.cancel">Cancelar</button>
+        <button type="button" class="btn primary" id="it-apply" data-i18n="it.apply">Importar</button>
       </div>
     </div>
   </div>
 
+  <div class="modal-backdrop" id="modal-settings" hidden>
+    <div class="modal modal-settings" role="dialog" aria-labelledby="settings-title">
+      <header class="modal-head">
+        <div>
+          <p class="eyebrow" data-i18n="settings.eyebrow">Preferencias</p>
+          <h3 id="settings-title" data-i18n="settings.title">Ajustes</h3>
+        </div>
+        <button type="button" class="btn icon" id="settings-cancel" aria-label="Cerrar" data-i18n-aria="settings.close">×</button>
+      </header>
+      <label class="settings-field">
+        <span data-i18n="settings.language">Idioma de la interfaz</span>
+        <select id="settings-lang"></select>
+      </label>
+      <p class="lede settings-help" data-i18n="settings.languageHelp">Cambia las etiquetas de la app. Los nombres del .d4 (Attribute ID, Function Name) no se traducen.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn primary" id="settings-close" data-i18n="settings.close">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
