@@ -54,6 +54,132 @@
     { name: "12ch", channels: 12 },
   ];
 
+  /**
+   * Pearl/Titan Include Wheel= values are numeric indices (PearlMapping.xml Index),
+   * not the symbolic names used in Standard.d4t Attribute definitions ("Wheel 1", "Dimmer").
+   * Exporting symbolic names is a common cause of Titan/PB rejecting generated .d4 files.
+   */
+  const WHEEL_INDEX_BY_ATTR = {
+    Dimmer: "1",
+    Pan: "2",
+    Tilt: "3",
+    Shutter: "4",
+    Shutter1: "4",
+    Iris: "21",
+    Zoom: "19",
+    Focus: "20",
+    Colour1: "8",
+    Colour2: "8",
+    Cyan: "10",
+    Magenta: "11",
+    Yellow: "12",
+    Red: "10",
+    Green: "11",
+    Blue: "12",
+    White: "9",
+    Amber: "8",
+    WarmWhite: "40",
+    ColdWhite: "41",
+    UV: "42",
+    Lime: "43",
+    Gobo1: "14",
+    Gobo1Rot: "15",
+    Gobo2: "17",
+    Gobo2Rot: "18",
+    Effect: "23",
+    Effect_Rot: "24",
+    Frost: "20",
+    Prism: "23",
+    Prism_Rot: "24",
+    Control: "28",
+    Speed: "25",
+    PT_Speed: "26",
+  };
+
+  const COLOR_MIX_IDS = new Set([
+    "Red",
+    "Green",
+    "Blue",
+    "White",
+    "Amber",
+    "WarmWhite",
+    "ColdWhite",
+    "UV",
+    "Lime",
+    "Cyan",
+    "Magenta",
+    "Yellow",
+  ]);
+
+  const SYMBOLIC_WHEEL_TO_INDEX = {
+    Dimmer: "1",
+    Pan: "2",
+    Tilt: "3",
+  };
+
+  function newGuid() {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
+  /** Normalize Include/Master Wheel to a numeric Pearl index string. */
+  function wheelIndexForExport(attrId, wheelHint) {
+    const raw = String(wheelHint ?? "").trim();
+    if (/^\d+$/.test(raw)) return raw;
+    if (SYMBOLIC_WHEEL_TO_INDEX[raw]) return SYMBOLIC_WHEEL_TO_INDEX[raw];
+    const m = /^Wheel\s+(\d+)$/i.exec(raw);
+    if (WHEEL_INDEX_BY_ATTR[attrId]) return WHEEL_INDEX_BY_ATTR[attrId];
+    if (m) {
+      // "Wheel N" in templates is bank-local; prefer attr map, else leave N only as last resort
+      return m[1];
+    }
+    if (WHEEL_INDEX_BY_ATTR[attrId]) return WHEEL_INDEX_BY_ATTR[attrId];
+    return "1";
+  }
+
+  function defaultLocateValue(attr) {
+    const v = String(attr?.locate || "").trim();
+    return v || "1:100";
+  }
+
+  function defaultPowerOnValue(attr) {
+    const v = String(attr?.powerOn || "").trim();
+    if (v) return v;
+    if (attr?.id === "Dimmer") return "1:0";
+    return defaultLocateValue(attr);
+  }
+
+  function physicalXmlBlock(indent) {
+    const sp = " ".repeat(indent);
+    return [
+      `${sp}<Physical>`,
+      `${sp}  <Bulb Type="" Lumens="" ColourTemp="" />`,
+      `${sp}  <Lens Name="" Degrees="" />`,
+      `${sp}  <Weight Kg="" />`,
+      `${sp}  <Size Height="" Width="" Depth="" />`,
+      `${sp}  <Focus Type="Fixed" PanMax="0" TiltMax="0" PanMaxSpeed="0" TiltMaxSpeed="0" />`,
+      `${sp}</Physical>`,
+    ];
+  }
+
+  function resolveVirtualControl(inc, mode, fx) {
+    const existing = String(inc.virtualControl || "").trim();
+    if (existing) return existing;
+    const hasDimmer =
+      fx.attributes.some((a) => a.id === "Dimmer") || mode.includes.some((i) => i.id === "Dimmer");
+    if (!hasDimmer) return "";
+    if (COLOR_MIX_IDS.has(inc.id) && inc.channelOffset) return "Dimmer";
+    // Cell dimmers Dimmer1..DimmerN under a master Dimmer
+    if (/^Dimmer\d+$/i.test(inc.id) && inc.channelOffset) return "Dimmer";
+    return "";
+  }
+
   let state = createEmptyFixture();
   let selection = { kind: "fixture" };
   let catalogTab = "attributes";
@@ -383,6 +509,7 @@
 
     const mode = {
       name,
+      id: newGuid(),
       channels: 0,
       includes: [],
       cells: createEmptyCells(),
@@ -402,7 +529,12 @@
         cursor = start + (row.resolution === "16-bit" ? 2 : 1);
       }
       if (!mode.includes.some((i) => i.id === attr.id)) {
-        mode.includes.push({ id: attr.id, channelOffset: offset, wheel: attr.wheel || "" });
+        mode.includes.push({
+          id: attr.id,
+          channelOffset: offset,
+          wheel: wheelIndexForExport(attr.id, attr.wheel),
+          virtualControl: "",
+        });
       }
     }
     mode.channels = Math.max(
@@ -769,6 +901,7 @@
     while (state.modes.some((m) => m.name === name)) name = `${tpl.name} ${n++}`;
     state.modes.push({
       name,
+      id: newGuid(),
       channels: tpl.channels || 0,
       includes: [],
       cells: createEmptyCells(),
@@ -806,7 +939,8 @@
     mode.includes.push({
       id: attrId,
       channelOffset: offset,
-      wheel: attr.wheel || "",
+      wheel: wheelIndexForExport(attrId, attr.wheel),
+      virtualControl: "",
     });
     const maxCh = Math.max(
       mode.channels,
@@ -825,107 +959,245 @@
     render();
   }
 
+  function collectExportWarnings(fx) {
+    const warnings = [];
+    if (!fx.attributes.length) warnings.push("fixture sin atributos");
+    if (!fx.modes.length) warnings.push("fixture sin modes");
+    else {
+      const emptyModes = fx.modes.filter(
+        (m) => !m.includes?.length && !(m.cells?.cells && m.cells.cells.length) && !Number(m.channels)
+      );
+      if (emptyModes.length) warnings.push(`${emptyModes.length} mode(s) vacíos`);
+    }
+    if (!String(fx.manufacturer || "").trim()) warnings.push("Manufacturer vacío");
+    if (!String(fx.name || "").trim()) warnings.push("Name vacío");
+    for (const a of fx.attributes) {
+      if (!a.functions?.length) warnings.push(`${a.id || a.name}: sin functions`);
+    }
+    return warnings;
+  }
+
   function exportD4() {
-    const xml = serializeD4(state);
+    const warnings = collectExportWarnings(state);
+    let xml;
+    try {
+      xml = serializeD4(state);
+    } catch (err) {
+      console.error(err);
+      setStatus(`Export falló: ${err?.message || err}`);
+      return;
+    }
+    const parsed = new DOMParser().parseFromString(xml, "application/xml");
+    if (parsed.querySelector("parsererror")) {
+      setStatus("Export falló: XML mal formado (no se descargó).");
+      return;
+    }
     const blob = new Blob([xml], { type: "application/xml" });
     const a = document.createElement("a");
-    const safeMan = (state.manufacturer || "Manufacturer").replace(/[^\w\- ]+/g, "").trim();
-    const safeName = (state.name || "Fixture").replace(/[^\w\- ]+/g, "").trim();
+    const safeMan = (state.manufacturer || "Manufacturer").replace(/[^\w\- ]+/g, "").trim() || "Manufacturer";
+    const safeName = (state.name || "Fixture").replace(/[^\w\- ]+/g, "").trim() || "Fixture";
     a.href = URL.createObjectURL(blob);
     a.download = `${safeMan}_${safeName}.d4`;
     a.click();
     URL.revokeObjectURL(a.href);
     dirty = false;
     updateTitle();
-    setStatus(`Guardado ${a.download}`);
+    if (warnings.length) {
+      setStatus(`Guardado ${a.download} · aviso: ${warnings.join("; ")}`);
+    } else {
+      setStatus(`Guardado ${a.download}`);
+    }
+  }
+
+  function serializeIncludeAttribute(inc, mode, fx) {
+    const parts = [`ID="${xmlAttr(inc.id)}"`];
+    if (inc.channelOffset) parts.push(`ChannelOffset="${xmlAttr(inc.channelOffset)}"`);
+    const attr = fx.attributes.find((a) => a.id === inc.id);
+    const wheel = wheelIndexForExport(inc.id, inc.wheel || attr?.wheel);
+    parts.push(`Wheel="${xmlAttr(wheel)}"`);
+    const vctrl = resolveVirtualControl(inc, mode, fx);
+    if (vctrl) parts.push(`VirtualControl="${xmlAttr(vctrl)}"`);
+    return `      <Attribute ${parts.join(" ")} />`;
+  }
+
+  function serializeModeBody(mode, fx, opts = {}) {
+    const lines = [];
+    const hidden = opts.hidden ? ` Hidden="True"` : "";
+    const modeId = mode.id || newGuid();
+    if (!mode.id) mode.id = modeId;
+    const channels = Number(mode.channels) || 0;
+    lines.push(`  <Mode Name="${xmlAttr(mode.name)}" Channels="${channels}" Id="${xmlAttr(modeId)}"${hidden}>`);
+    lines.push(`    <Import PearlRef="" DiamondRef="" WysiwygRef="" />`);
+    lines.push(...physicalXmlBlock(4));
+    const hasCells = mode.cells && Array.isArray(mode.cells.cells) && mode.cells.cells.length > 0;
+    if (hasCells) {
+      // Official cell modes use empty Include; masters live under Cells
+      lines.push(`    <Include />`);
+      lines.push(`    <Cells>`);
+      lines.push(`      <Master>`);
+      const masters = mode.cells.masterIds?.length
+        ? mode.cells.masterIds
+        : fx.attributes.map((a) => a.id);
+      for (const mid of masters) {
+        const attr = fx.attributes.find((a) => a.id === mid);
+        const wheel = wheelIndexForExport(mid, attr?.wheel);
+        lines.push(`        <Attribute ID="${xmlAttr(mid)}" Wheel="${xmlAttr(wheel)}" />`);
+      }
+      lines.push(`      </Master>`);
+      const modeLink = String(mode.cells.modeLink || "").trim() || "cell";
+      for (const cell of mode.cells.cells) {
+        lines.push(
+          `      <Cell ID="${xmlAttr(cell.id)}" Name="${xmlAttr(cell.name)}" ChannelOffset="${xmlAttr(
+            cell.channelOffset
+          )}" ModeLink="${xmlAttr(modeLink)}" X="${cell.x}" Y="${cell.y}">`
+        );
+        const links =
+          Array.isArray(cell.links) && cell.links.length
+            ? cell.links
+            : masters.map((mid) => ({ sourceId: mid, targetId: mid }));
+        for (const link of links) {
+          lines.push(
+            `        <AttributeLink SourceId="${xmlAttr(link.sourceId)}" TargetId="${xmlAttr(link.targetId)}" />`
+          );
+        }
+        lines.push(`      </Cell>`);
+      }
+      lines.push(`    </Cells>`);
+    } else {
+      lines.push(`    <Include>`);
+      for (const inc of mode.includes || []) {
+        lines.push(serializeIncludeAttribute(inc, mode, fx));
+      }
+      lines.push(`    </Include>`);
+    }
+    lines.push(`  </Mode>`);
+    return lines;
+  }
+
+  /** Build a Hidden Mode referenced by Cells ModeLink when missing. */
+  function ensureCellLinkModes(fx) {
+    const extras = [];
+    const names = new Set(fx.modes.map((m) => m.name));
+    for (const mode of fx.modes) {
+      const cells = mode.cells?.cells;
+      if (!cells?.length) continue;
+      const linkName = String(mode.cells.modeLink || "").trim() || "cell";
+      mode.cells.modeLink = linkName;
+      if (names.has(linkName)) continue;
+      names.add(linkName);
+      const masters = mode.cells.masterIds?.length
+        ? mode.cells.masterIds
+        : fx.attributes.map((a) => a.id);
+      const stride = Math.max(1, Number(mode.cells.channelsPerCell) || masters.filter((id) => id !== "Dimmer").length || 1);
+      let cursor = 1;
+      const includes = [];
+      for (const mid of masters) {
+        if (mid === "Dimmer") {
+          // Virtual dimmer in cell footprint (matches Generic LED Batten / RGB 3 DMX)
+          includes.push({ id: mid, channelOffset: "", wheel: wheelIndexForExport(mid), virtualControl: "" });
+          continue;
+        }
+        const attr = fx.attributes.find((a) => a.id === mid);
+        const is16 = attr?.resolution === "16-bit";
+        const offset = is16 ? `${cursor},${cursor + 1}` : String(cursor);
+        cursor += is16 ? 2 : 1;
+        includes.push({
+          id: mid,
+          channelOffset: offset,
+          wheel: wheelIndexForExport(mid, attr?.wheel),
+          virtualControl: COLOR_MIX_IDS.has(mid) ? "Dimmer" : "",
+        });
+      }
+      // Official order often puts Dimmer last without offset when VirtualControl is used
+      const dimIdx = includes.findIndex((i) => i.id === "Dimmer");
+      if (dimIdx >= 0 && dimIdx !== includes.length - 1) {
+        const [dim] = includes.splice(dimIdx, 1);
+        includes.push(dim);
+      }
+      extras.push({
+        name: linkName,
+        id: newGuid(),
+        channels: Math.max(stride, cursor - 1),
+        includes,
+        cells: createEmptyCells(),
+        hidden: true,
+      });
+    }
+    return extras;
   }
 
   function serializeD4(fx) {
     const lines = [];
+    const version = String(fx.personalityVersion || "0");
+    const company = fx.manufacturer || "";
+    const name = fx.name || "Fixture 1";
+    const shortName = fx.shortName || String(name).slice(0, 10) || "0";
     lines.push(`<?xml version="1.0" encoding="utf-8"?>`);
     lines.push(
-      `<Fixture Name="${xmlAttr(fx.name)}" ShortName="${xmlAttr(fx.shortName)}" Company="${xmlAttr(fx.manufacturer)}">`
+      `<Fixture Name="${xmlAttr(name)}" ShortName="${xmlAttr(shortName)}" Company="${xmlAttr(company)}" Version="${xmlAttr(
+        version
+      )}">`
     );
-    lines.push(`  <Copyright Notice="Replica Personality Builder — independent .d4 export" />`);
+    const year = new Date().getFullYear();
+    lines.push(`  <Copyright Notice="Replica Personality Builder — independent .d4 export ${year}" />`);
     const today = new Date();
     const d = `${String(today.getDate()).padStart(2, "0")}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(
       today.getFullYear()
     ).slice(2)}`;
-    lines.push(`  <History Date="${d}" Author="Personality Builder Replica" Comment="Created" />`);
+    lines.push(
+      `  <History Date="${d}" Author="Personality Builder Replica" Comment="Created" Version="${xmlAttr(version)}" />`
+    );
     if (fx.tags) lines.push(`  <!-- Tags: ${xmlAttr(fx.tags)} -->`);
-    if (fx.personalityVersion) lines.push(`  <!-- PersonalityVersion: ${xmlAttr(fx.personalityVersion)} -->`);
     lines.push(`  <Manual Filename="" Summary="" />`);
     lines.push(`  <Control>`);
     for (const attr of fx.attributes) {
-      lines.push(`    <Attribute ID="${xmlAttr(attr.id)}" Name="${xmlAttr(attr.name)}" Description="" Group="${attr.group}">`);
-      lines.push(`      <Locate Locate="${xmlAttr(attr.locate)}" PowerOn="${xmlAttr(attr.locate)}" />`);
-      attr.functions.forEach((fn, idx) => {
-        const colour = fn.colour ? ` Colour="${fn.colour}"` : "";
+      const size = attr.resolution === "16-bit" ? ` Size="2"` : "";
+      lines.push(
+        `    <Attribute ID="${xmlAttr(attr.id)}" Name="${xmlAttr(attr.name)}" Description="" Group="${xmlAttr(
+          attr.group || "S"
+        )}"${size}>`
+      );
+      const locate = defaultLocateValue(attr);
+      const powerOn = defaultPowerOnValue(attr);
+      lines.push(`      <Locate Locate="${xmlAttr(locate)}" PowerOn="${xmlAttr(powerOn)}" />`);
+      const fns = attr.functions?.length ? attr.functions : [{ name: attr.name || attr.id, dmx: "0~255", display: "" }];
+      fns.forEach((fn, idx) => {
+        const colour = fn.colour ? ` Colour="${xmlAttr(fn.colour)}"` : "";
         const intensity = attr.id === "Dimmer" ? ` Intensity="0~0"` : "";
+        const display = fn.display || fn.name || "";
+        const dmx = fn.dmx || (attr.resolution === "16-bit" ? "0~65535" : "0~255");
         lines.push(
-          `      <Function ID="${idx + 1}" Name="${xmlAttr(fn.name)}" Display="${xmlAttr(fn.display)}" Dmx="${xmlAttr(
-            fn.dmx
-          )}"${colour}${intensity} />`
+          `      <Function ID="${idx + 1}" Name="${xmlAttr(fn.name || `Function ${idx + 1}`)}" Display="${xmlAttr(
+            display
+          )}" Dmx="${xmlAttr(dmx)}"${colour}${intensity} />`
         );
       });
       lines.push(`    </Attribute>`);
     }
     lines.push(`  </Control>`);
+
+    const cellLinkModes = ensureCellLinkModes(fx);
     for (const mode of fx.modes) {
-      lines.push(`  <Mode Name="${xmlAttr(mode.name)}" Channels="${mode.channels}">`);
-      lines.push(`    <Import PearlRef="" DiamondRef="" WysiwygRef="" />`);
-      lines.push(`    <Physical>`);
-      lines.push(`      <Bulb Type="" Lumens="" ColourTemp="" />`);
-      lines.push(`      <Lens Name="" Degrees="" />`);
-      lines.push(`      <Weight Kg="" />`);
-      lines.push(`      <Size Height="" Width="" Depth="" />`);
-      lines.push(`      <Focus Type="Fixed" PanMax="0" TiltMax="0" PanMaxSpeed="0" TiltMaxSpeed="0" />`);
-      lines.push(`    </Physical>`);
-      const hasCells = mode.cells && Array.isArray(mode.cells.cells) && mode.cells.cells.length > 0;
-      if (hasCells) {
-        // Cell modes typically leave Include empty; masters live under Cells
-        lines.push(`    <Include />`);
-        lines.push(`    <Cells>`);
-        lines.push(`      <Master>`);
-        const masters = mode.cells.masterIds.length
-          ? mode.cells.masterIds
-          : fx.attributes.map((a) => a.id);
-        for (const mid of masters) {
-          const attr = fx.attributes.find((a) => a.id === mid);
-          const wheel = attr?.wheel ? ` Wheel="${xmlAttr(attr.wheel)}"` : "";
-          lines.push(`        <Attribute ID="${xmlAttr(mid)}"${wheel} />`);
-        }
-        lines.push(`      </Master>`);
-        for (const cell of mode.cells.cells) {
-          lines.push(
-            `      <Cell ID="${xmlAttr(cell.id)}" Name="${xmlAttr(cell.name)}" ChannelOffset="${xmlAttr(
-              cell.channelOffset
-            )}" ModeLink="${xmlAttr(mode.cells.modeLink || "")}" X="${cell.x}" Y="${cell.y}">`
-          );
-          for (const mid of masters) {
-            lines.push(`        <AttributeLink SourceId="${xmlAttr(mid)}" TargetId="${xmlAttr(mid)}" />`);
-          }
-          lines.push(`      </Cell>`);
-        }
-        lines.push(`    </Cells>`);
-      } else {
-        lines.push(`    <Include>`);
-        for (const inc of mode.includes) {
-          const offset = inc.channelOffset ? ` ChannelOffset="${xmlAttr(inc.channelOffset)}"` : "";
-          const wheel = inc.wheel ? ` Wheel="${xmlAttr(inc.wheel)}"` : "";
-          const vdim =
-            ["Red", "Green", "Blue", "White", "Amber"].includes(inc.id) && fx.attributes.some((a) => a.id === "Dimmer")
-              ? ` VirtualControl="Dimmer"`
-              : "";
-          lines.push(`      <Attribute ID="${xmlAttr(inc.id)}"${offset}${wheel}${vdim} />`);
-        }
-        lines.push(`    </Include>`);
-      }
-      lines.push(`  </Mode>`);
+      lines.push(...serializeModeBody(mode, fx, { hidden: !!mode.hidden }));
+    }
+    for (const mode of cellLinkModes) {
+      lines.push(...serializeModeBody(mode, fx, { hidden: true }));
     }
     lines.push(`</Fixture>`);
-    return lines.join("\n") + "\n";
+    // Official personalities use CRLF; LF alone usually works but CRLF matches Titan/PB on Windows.
+    return lines.join("\r\n") + "\r\n";
   }
+
+  // Test hook for Playwright / console round-trips
+  window.__PB_TEST__ = {
+    serializeD4,
+    collectExportWarnings,
+    wheelIndexForExport,
+    getState: () => state,
+    setState: (next) => {
+      state = next;
+    },
+  };
 
   async function importD4(file) {
     const text = await file.text();
@@ -954,7 +1226,8 @@
       }));
       const locateEl = attrEl.querySelector(":scope > Locate");
       const dmxSample = functions[0]?.dmx || "0~255";
-      const is16 = dmxSample.split("~").some((v) => Number(v) > 255);
+      const sizeAttr = Number(attrEl.getAttribute("Size") || 0);
+      const is16 = sizeAttr >= 2 || dmxSample.split("~").some((v) => Number(v) > 255);
       const id = attrEl.getAttribute("ID") || `Attr${next.attributes.length + 1}`;
       const cat = ATTR_CATALOG.find((c) => c.id === id);
       next.attributes.push({
@@ -967,6 +1240,7 @@
         resolution: is16 ? "16-bit" : "8-bit",
         functions,
         locate: locateEl?.getAttribute("Locate") || "1:100",
+        powerOn: locateEl?.getAttribute("PowerOn") || "",
         hasConditions: !!attrEl.querySelector(":scope > Condition"),
       });
     }
@@ -1013,9 +1287,11 @@
       }
       next.modes.push({
         name: modeEl.getAttribute("Name") || "Mode",
+        id: modeEl.getAttribute("Id") || "",
         channels: Number(modeEl.getAttribute("Channels") || includes.length),
         includes,
         cells: cellsCfg,
+        hidden: String(modeEl.getAttribute("Hidden") || "").toLowerCase() === "true",
       });
     }
     state = next;
