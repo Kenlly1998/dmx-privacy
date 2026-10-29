@@ -1,0 +1,33 @@
+Personality Builder Replica — Windows
+=====================================
+
+REQUISITO: Windows 10/11 (PowerShell incluido). No necesitas instalar Python.
+
+COMO ABRIR
+----------
+1. Copia la carpeta "personality-builder" a tu PC (o descomprime el ZIP).
+2. Entra a la subcarpeta "windows".
+3. Doble clic en:  Start-PersonalityBuilder.bat
+4. Se abre el navegador solo (elige un puerto libre, no pelea con 8765).
+5. Para cerrar: en la ventana negra pulsa Ctrl+C.
+
+ALTERNATIVA SIN SERVIDOR
+------------------------
+Si el .bat falla, abre directamente:
+  personality-builder\index.html
+(con doble clic). El catálogo ya va embebido.
+
+PROBAR ARCHIVOS DE EJEMPLO
+--------------------------
+En la app: boton Abrir, y elige un archivo de la carpeta samples\:
+  - Demo_RGBWash.d4
+  - DemoCo_RGB_Wash.gdtf
+  - DemoCo_Show.mvr
+  - OFL_chauvet-dj_slimpar-pro-qz12.json
+
+Luego: Guardar .d4
+
+NOTA
+----
+Esto es una replica web de escritorio (Chrome/Edge). No es el Personality
+Builder oficial de Avolites.

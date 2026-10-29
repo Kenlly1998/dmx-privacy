@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fixture 1 - Personality Builder</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="theme-pb">
+  <div id="app">
+    <div class="menubar" role="menubar">
+      <div class="menu">
+        <button type="button" class="menu-btn" data-menu="file">File</button>
+        <div class="menu-dropdown" id="menu-file" hidden>
+          <button type="button" data-act="new">New<span class="accel">Ctrl+N</span></button>
+          <button type="button" data-act="open">Open...<span class="accel">Ctrl+O</span></button>
+          <button type="button" data-act="save">Save<span class="accel">Ctrl+S</span></button>
+          <button type="button" data-act="saveas">Save As...</button>
+          <button type="button" data-act="close">Close</button>
+          <hr />
+          <button type="button" data-act="r20">Generate R20 channel sheet...</button>
+          <hr />
+          <button type="button" data-act="import-gdtf">Import GDTF / MVR / OFL...</button>
+          <button type="button" data-act="import-table">Import channel table...</button>
+          <hr />
+          <button type="button" data-act="exit">Exit</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button type="button" class="menu-btn" data-menu="edit">Edit</button>
+        <div class="menu-dropdown" id="menu-edit" hidden>
+          <button type="button" data-act="undo">Undo<span class="accel">Ctrl+Z</span></button>
+          <button type="button" data-act="redo">Redo<span class="accel">Ctrl+Y</span></button>
+          <hr />
+          <button type="button" data-act="dup-mode" title="Duplicate selected mode">Duplicate Mode</button>
+          <button type="button" data-act="add-cond">Add Condition</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button type="button" class="menu-btn" data-menu="view">View</button>
+        <div class="menu-dropdown" id="menu-view" hidden>
+          <button type="button" data-act="view-attributes">Attributes catalog</button>
+          <button type="button" data-act="view-functions">Functions catalog</button>
+          <button type="button" data-act="view-modes">Modes</button>
+          <button type="button" data-act="view-history">History</button>
+          <button type="button" data-act="view-physical">Physical</button>
+          <button type="button" data-act="view-macros">Macros</button>
+          <button type="button" data-act="view-palettes">Palettes</button>
+          <button type="button" data-act="view-swatch">Swatch</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button type="button" class="menu-btn" data-menu="tools">Tools</button>
+        <div class="menu-dropdown" id="menu-tools" hidden>
+          <button type="button" data-act="mode-first">Mode-first from channels...</button>
+          <button type="button" data-act="lint">Run linter</button>
+          <button type="button" data-act="range-seq">DMX range sequencer tip</button>
+          <hr />
+          <button type="button" data-act="settings">Language / Settings...</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button type="button" class="menu-btn" data-menu="help">Help</button>
+        <div class="menu-dropdown" id="menu-help" hidden>
+          <button type="button" data-act="about">About Personality Builder Replica</button>
+        </div>
+      </div>
+      <span class="menubar-spacer"></span>
+      <span class="menubar-hint" id="title-fixture" hidden>Fixture 1</span>
+    </div>
+
+    <div class="workspace">
+      <aside class="nav-pane" id="nav-pane">
+        <div class="pane-body">
+          <ul class="tree" id="tree"></ul>
+        </div>
+      </aside>
+
+      <div class="right-stack">
+        <section class="catalog-pane">
+          <div class="tabs" id="catalog-tabs">
+            <button type="button" data-tab="attributes" class="active">Attributes</button>
+            <button type="button" data-tab="functions">Functions</button>
+            <button type="button" data-tab="created">Created Attributes</button>
+            <button type="button" data-tab="current">Current Functions</button>
+            <button type="button" data-tab="history">History</button>
+            <button type="button" data-tab="modes">Modes</button>
+            <button type="button" data-tab="macros">Macros</button>
+            <button type="button" data-tab="palettes">Palettes</button>
+            <button type="button" data-tab="swatch">Swatch</button>
+          </div>
+          <div class="pane-body" id="catalog-body"></div>
+        </section>
+
+        <section class="props-pane">
+          <div class="pane-body" id="props-body"></div>
+          <div class="help-bar" id="help-bar">
+            <div id="help-name">Name</div>
+            <div id="help-desc">Name of this fixture</div>
+          </div>
+          <div class="tabs tabs-bottom" id="props-tabs">
+            <button type="button" data-tab="properties" class="active">Properties</button>
+            <button type="button" data-tab="dmx">DMX Values</button>
+            <button type="button" data-tab="channels">Channels</button>
+            <button type="button" data-tab="wheels">Wheel Mapping</button>
+            <button type="button" data-tab="locate">Locate Values</button>
+            <button type="button" data-tab="cells">Cells</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="lint-bar" id="lint-bar" hidden></div>
+
+    <footer class="status">
+      <span id="status-text">Ready.</span>
+      <span id="status-counts">0 attrs · 0 modes</span>
+    </footer>
+  </div>
+
+  <input type="file" id="file-import" accept=".d4,.xml,.gdtf,.mvr,.json,text/xml,application/zip,application/json" class="hidden" />
+  <input type="file" id="file-csv" accept=".csv,.tsv,.txt,text/csv,text/plain" class="hidden" />
+
+  <!-- Enhancement modals (Tools) — not in original PB, kept additive -->
+  <div class="modal-backdrop" id="modal-mode-first" hidden>
+    <div class="modal modal-wide" role="dialog" aria-labelledby="mf-title">
+      <header class="modal-head">
+        <div>
+          <p class="eyebrow" data-i18n="mf.eyebrow">Quick create</p>
+          <h3 id="mf-title" data-i18n="mf.title">Mode-first from channels</h3>
+        </div>
+        <button type="button" class="btn icon" id="mf-cancel" aria-label="Close">×</button>
+      </header>
+      <p class="lede" data-i18n="mf.lede">Enter the manual patch in DMX order. Preview before creating attributes and mode.</p>
+      <div class="modal-grid">
+        <label><span data-i18n="mf.modeName">Mode name</span> <input id="mf-name" value="Mode 1" /></label>
+        <div class="grow">
+          <span data-i18n="mf.channels">Channels</span>
+          <textarea id="mf-channels" rows="14" placeholder="1,Dimmer,8&#10;2,Red,8&#10;3,Green,8&#10;4,Blue,8"></textarea>
+          <div class="chip-row">
+            <button type="button" class="chip" data-mf-preset="rgb" data-i18n="mf.preset.rgb">RGB + Dimmer</button>
+            <button type="button" class="chip" data-mf-preset="spot" data-i18n="mf.preset.spot">Spot 16-bit</button>
+            <button type="button" class="chip" data-mf-preset="wash" data-i18n="mf.preset.wash">Wash RGBW</button>
+          </div>
+        </div>
+        <div>
+          <div class="preview-head"><span data-i18n="mf.preview">Preview</span> <span id="mf-preview-meta">0 channels</span></div>
+          <div class="preview-scroll"><table class="preview-table" id="mf-preview"><thead><tr><th>Ch</th><th>Attr</th><th>Res</th></tr></thead><tbody></tbody></table></div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" id="mf-cancel-2" data-i18n="mf.cancel">Cancel</button>
+        <button type="button" class="btn primary" id="mf-apply" data-i18n="mf.apply">Create mode + attributes</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modal-import-table" hidden>
+    <div class="modal modal-wide" role="dialog" aria-labelledby="it-title">
+      <header class="modal-head">
+        <div>
+          <p class="eyebrow" data-i18n="it.eyebrow">From manual</p>
+          <h3 id="it-title" data-i18n="it.title">Import channel table</h3>
+        </div>
+        <button type="button" class="btn icon" id="it-cancel" aria-label="Close">×</button>
+      </header>
+      <p class="lede" data-i18n="it.lede">Paste CSV/TSV or open a file. Columns: channel, attribute, resolution, functions.</p>
+      <div class="modal-grid">
+        <label><span data-i18n="it.modeName">Mode name</span> <input id="it-name" value="Imported" /></label>
+        <div class="grow">
+          <span data-i18n="it.table">Table</span>
+          <textarea id="it-table" rows="12"></textarea>
+          <button type="button" class="btn ghost" id="it-file-btn" data-i18n="it.file">Open CSV…</button>
+        </div>
+        <div>
+          <div class="preview-head"><span data-i18n="it.preview">Preview</span> <span id="it-preview-meta">0 channels</span></div>
+          <div class="preview-scroll"><table class="preview-table" id="it-preview"><thead><tr><th>Ch</th><th>Attr</th><th>Res</th></tr></thead><tbody></tbody></table></div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" id="it-cancel-2" data-i18n="it.cancel">Cancel</button>
+        <button type="button" class="btn primary" id="it-apply" data-i18n="it.apply">Import</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modal-settings" hidden>
+    <div class="modal modal-settings" role="dialog" aria-labelledby="settings-title">
+      <header class="modal-head">
+        <div>
+          <p class="eyebrow" data-i18n="settings.eyebrow">Preferences</p>
+          <h3 id="settings-title" data-i18n="settings.title">Settings</h3>
+        </div>
+        <button type="button" class="btn icon" id="settings-cancel" aria-label="Close">×</button>
+      </header>
+      <label class="settings-field">
+        <span data-i18n="settings.language">Interface language</span>
+        <select id="settings-lang"></select>
+      </label>
+      <p class="lede settings-help" data-i18n="settings.languageHelp">Changes app labels. .d4 names are not translated.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn primary" id="settings-close" data-i18n="settings.close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modal-mvr-pick" hidden>
+    <div class="modal modal-settings" role="dialog" aria-labelledby="mvr-title">
+      <header class="modal-head">
+        <div>
+          <p class="eyebrow" data-i18n="mvr.eyebrow">Import MVR</p>
+          <h3 id="mvr-title" data-i18n="mvr.title">Choose GDTF fixture</h3>
+        </div>
+        <button type="button" class="btn icon" id="mvr-cancel" aria-label="Close">×</button>
+      </header>
+      <p class="lede settings-help" data-i18n="mvr.help">This MVR embeds several GDTFs. Pick which one to convert to a .d4 personality.</p>
+      <div id="mvr-list" class="mvr-list"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" id="mvr-cancel-2" data-i18n="mf.cancel">Cancel</button>
+        <button type="button" class="btn primary" id="mvr-apply" data-i18n="mvr.open">Open selected</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modal-about" hidden>
+    <div class="modal modal-settings" role="dialog">
+      <header class="modal-head">
+        <div><h3>About</h3></div>
+        <button type="button" class="btn icon" id="about-close" aria-label="Close">×</button>
+      </header>
+      <p class="lede">Independent replica of Avolites Personality Builder 3.4.1 for editing Titan <code>.d4</code> personalities. Not affiliated with Avolites.</p>
+      <p class="lede">Additive tools: Mode-first, CSV import, GDTF/MVR/OFL import, mode duplicate, DMX range sequencer, i18n.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn primary" id="about-ok">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="vendor/jszip.min.js"></script>
+  <script src="catalog-data.js"></script>
+  <script src="functions-data.js"></script>
+  <script src="i18n.js"></script>
+  <script src="gdtf-import.js"></script>
+  <script src="ofl-import.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
