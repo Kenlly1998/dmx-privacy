@@ -1254,7 +1254,16 @@ button, input, select, textarea {
 .ico-mode { background: linear-gradient(#f0c040, #f0c040) 0 4px / 14px 10px no-repeat, linear-gradient(#e0a020, #e0a020) 0 2px / 8px 3px no-repeat; }
 .ico-macro { background: #6a3dff; clip-path: polygon(20% 0, 80% 0, 80% 20%, 55% 20%, 55% 100%, 45% 100%, 45% 20%, 20% 20%); }
 .ico-palette { background: conic-gradient(#e10600, #ffe14a, #00a651, #1a5cff, #e10600); border-radius: 50%; }
-.node-link { color: #555; margin-left: 4px; }
+.pb-ico.fn {
+  width: 14px;
+  height: 14px;
+  border: 1px solid #333;
+  border-radius: 2px;
+  background:
+    linear-gradient(#333, #333) 3px 3px / 2px 8px no-repeat,
+    linear-gradient(#333, #333) 3px 3px / 6px 2px no-repeat,
+    linear-gradient(#333, #333) 3px 6px / 5px 2px no-repeat;
+}
 
 @media (max-width: 720px) {
   .mode-row {

@@ -11,7 +11,7 @@
     { id: "S", label: "Special" },
   ];
 
-  /** Official-style PB function templates (Intensity tab + other groups). */
+  /** Function libraries from Personality Builder Standard.d4t (group follows Attribute.Group). */
   const FUNC_GROUPS = [
     { id: "I", label: "Intensity" },
     { id: "P", label: "Pan/Tilt" },
@@ -23,64 +23,74 @@
   ];
 
   const FUNC_CATALOG = [
-    // Intensity — matches PB 3.4.1 Functions pane
-    { group: "I", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255", glyph: "ƒ" },
-    { group: "I", name: "Raw DMX 16bit", dmx: "0~65535", display: "'Raw DMX %.f',0~65535", glyph: "ƒ" },
-    { group: "I", name: "8bit Dimmer", dmx: "0~255", display: "'%.1f%%',0.0~100.0", glyph: "ƒ" },
-    { group: "I", name: "16bit Dimmer", dmx: "0~65535", display: "'%.1f%%',0.0~100.0", glyph: "ƒ" },
-    { group: "I", name: "Open", dmx: "0~0", display: "Open", glyph: "ƒ" },
-    { group: "I", name: "Closed", dmx: "0~0", display: "Closed", glyph: "ƒ" },
-    { group: "I", name: "Strobe Hz Range", dmx: "0~255", display: "'Strobe %.1fHz',0.0~25.0", glyph: "ƒ" },
-    { group: "I", name: "Strobe % Range", dmx: "0~255", display: "'Strobe %.1f%%',0.0~100.0", glyph: "ƒ" },
-    { group: "I", name: "Pulse Range", dmx: "0~255", display: "'Pulse %.f%%',0~100", glyph: "ƒ" },
-    { group: "I", name: "Open Pulse Range", dmx: "0~255", display: "'Open Pulse %.f%%',0~100", glyph: "ƒ" },
-    { group: "I", name: "Close Pulse Range", dmx: "0~255", display: "'Close Pulse %.f%%',100~0", glyph: "ƒ" },
-    { group: "I", name: "Random Strobe Range", dmx: "0~255", display: "'Random Strobe %.f%%',0~100", glyph: "ƒ" },
-    { group: "I", name: "Generic Percentage Range", dmx: "0~255", display: "'%.1f%%',0.0~100.0", glyph: "ƒ" },
-    // Pan/Tilt
-    { group: "P", name: "Pan", dmx: "0~65535", display: "'%.1f%%',0.0~100.0", glyph: "ƒ" },
-    { group: "P", name: "Tilt", dmx: "0~65535", display: "'%.1f%%',0.0~100.0", glyph: "ƒ" },
-    { group: "P", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255", glyph: "ƒ" },
-    { group: "P", name: "Raw DMX 16bit", dmx: "0~65535", display: "'Raw DMX %.f',0~65535", glyph: "ƒ" },
-    { group: "P", name: "Generic Percentage Range", dmx: "0~255", display: "'%.1f%%',0.0~100.0", glyph: "ƒ" },
-    // Colour — wheel swatches + C-Mix (PB colour presets)
-    { group: "C", name: "Open", dmx: "0~0", display: "Open", colour: "255,255,255", glyph: "ƒ" },
-    { group: "C", name: "Red", dmx: "0~0", display: "Red", colour: "255,0,0", glyph: "ƒ" },
-    { group: "C", name: "Green", dmx: "0~0", display: "Green", colour: "0,255,0", glyph: "ƒ" },
-    { group: "C", name: "Blue", dmx: "0~0", display: "Blue", colour: "0,0,255", glyph: "ƒ" },
-    { group: "C", name: "Yellow", dmx: "0~0", display: "Yellow", colour: "255,255,0", glyph: "ƒ" },
-    { group: "C", name: "Cyan", dmx: "0~0", display: "Cyan", colour: "0,255,255", glyph: "ƒ" },
-    { group: "C", name: "Magenta", dmx: "0~0", display: "Magenta", colour: "255,0,255", glyph: "ƒ" },
-    { group: "C", name: "Warm White", dmx: "0~0", display: "Warm White", colour: "255,240,200", glyph: "ƒ" },
-    { group: "C", name: "Red C-Mix", dmx: "0~255", display: "'%.1f%%',0.0~100.0", colour: "255,0,0", glyph: "ƒ" },
-    { group: "C", name: "Green C-Mix", dmx: "0~255", display: "'%.1f%%',0.0~100.0", colour: "0,255,0", glyph: "ƒ" },
-    { group: "C", name: "Blue C-Mix", dmx: "0~255", display: "'%.1f%%',0.0~100.0", colour: "0,0,255", glyph: "ƒ" },
-    { group: "C", name: "White C-Mix", dmx: "0~255", display: "'%.1f%%',0.0~100.0", colour: "255,255,255", glyph: "ƒ" },
-    { group: "C", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255", glyph: "ƒ" },
-    // Gobo
-    { group: "G", name: "Open", dmx: "0~0", display: "Open", glyph: "ƒ" },
-    { group: "G", name: "Index", dmx: "0~127", display: "'Index %.f',0~100", glyph: "ƒ" },
-    { group: "G", name: "Rotate CW", dmx: "128~191", display: "'CW %.f',0~100", glyph: "ƒ" },
-    { group: "G", name: "Rotate CCW", dmx: "192~255", display: "'CCW %.f',0~100", glyph: "ƒ" },
-    { group: "G", name: "Shake", dmx: "0~255", display: "'Shake %.f%%',0~100", glyph: "ƒ" },
-    { group: "G", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255", glyph: "ƒ" },
-    // Beam
-    { group: "B", name: "Open", dmx: "0~0", display: "Open", glyph: "ƒ" },
-    { group: "B", name: "Closed", dmx: "0~0", display: "Closed", glyph: "ƒ" },
-    { group: "B", name: "Generic Percentage Range", dmx: "0~255", display: "'%.1f%%',0.0~100.0", glyph: "ƒ" },
-    { group: "B", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255", glyph: "ƒ" },
-    { group: "B", name: "Raw DMX 16bit", dmx: "0~65535", display: "'Raw DMX %.f',0~65535", glyph: "ƒ" },
-    // Effect
-    { group: "E", name: "Open", dmx: "0~0", display: "Open", glyph: "ƒ" },
-    { group: "E", name: "Index", dmx: "0~127", display: "'Index %.f',0~100", glyph: "ƒ" },
-    { group: "E", name: "Rotate CW", dmx: "128~191", display: "'CW %.f',0~100", glyph: "ƒ" },
-    { group: "E", name: "Rotate CCW", dmx: "192~255", display: "'CCW %.f',0~100", glyph: "ƒ" },
-    { group: "E", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255", glyph: "ƒ" },
-    // Special
-    { group: "S", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255", glyph: "ƒ" },
-    { group: "S", name: "Generic Percentage Range", dmx: "0~255", display: "'%.1f%%',0.0~100.0", glyph: "ƒ" },
-    { group: "S", name: "Open", dmx: "0~0", display: "Open", glyph: "ƒ" },
-    { group: "S", name: "Closed", dmx: "0~0", display: "Closed", glyph: "ƒ" },
+    { group: "I", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255" },
+    { group: "I", name: "Raw DMX 16bit", dmx: "0~65535", display: "'Raw DMX %.f',0~65535" },
+    { group: "I", name: "Dimmer", dmx: "0~255", display: "'%.1f%%',0~100" },
+    { group: "I", name: "Dimmer", dmx: "0~65535", display: "'%.2f%%',0.00~100.00" },
+    { group: "I", name: "Open", dmx: "0~0", display: "'Open'" },
+    { group: "I", name: "Closed", dmx: "0~0", display: "'Closed'" },
+    { group: "I", name: "Strobe Hz", dmx: "0~255", display: "'Strobe %.f Hz',0~50" },
+    { group: "I", name: "Strobe %", dmx: "0~255", display: "'Strobe %.f%%',0~100" },
+    { group: "I", name: "Pulse", dmx: "0~255", display: "'Pulse %.f%%',0~100" },
+    { group: "I", name: "Open Pulse", dmx: "0~255", display: "'Open Pulse    %.f%%',0~100" },
+    { group: "I", name: "Close Pulse", dmx: "0~255", display: "'Close Pulse   %.f%%',0~100" },
+    { group: "I", name: "Rnd Strobe", dmx: "0~255", display: "'Rnd Strobe    %.f%%',0~100" },
+    { group: "I", name: "Generic %", dmx: "0~255", display: "'%.f%%',0~100" },
+    { group: "P", name: "Pan", dmx: "0~255", display: "'%.1f%%',0~100" },
+    { group: "P", name: "Pan", dmx: "0~65535", display: "'%.2f%%',0.00~100.00" },
+    { group: "P", name: "Tilt", dmx: "0~255", display: "'%.1f%%',0~100" },
+    { group: "P", name: "Tilt", dmx: "0~65535", display: "'%.2f%%',0.00~100.00" },
+    { group: "C", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255" },
+    { group: "C", name: "Raw DMX 16bit", dmx: "0~65535", display: "'Raw DMX %.f',0~65535" },
+    { group: "C", name: "Open", dmx: "0~0", display: "'Open'", colour: "255,255,255" },
+    { group: "C", name: "Red", dmx: "0~0", display: "'Red'", colour: "255,0,0" },
+    { group: "C", name: "Green", dmx: "0~0", display: "'Green'", colour: "0,255,0" },
+    { group: "C", name: "Blue", dmx: "0~0", display: "'Blue'", colour: "0,0,255" },
+    { group: "C", name: "Yellow", dmx: "0~0", display: "'Yellow'", colour: "255,255,0" },
+    { group: "C", name: "Cyan", dmx: "0~0", display: "'Cyan'", colour: "0,255,255" },
+    { group: "C", name: "Magenta", dmx: "0~0", display: "'Magenta'", colour: "255,0,255" },
+    { group: "C", name: "Amber", dmx: "0~0", display: "'Amber'", colour: "255,191,0" },
+    { group: "C", name: "CTO", dmx: "0~0", display: "'CTO'", colour: "255,210,120" },
+    { group: "C", name: "White", dmx: "0~0", display: "'White'", colour: "255,255,255" },
+    { group: "C", name: "Cyan C-Mix", dmx: "0~255", display: "'%.1f%%',0~100", colour: "0,255,255" },
+    { group: "C", name: "Magenta C-Mix", dmx: "0~255", display: "'%.1f%%',0~100", colour: "255,0,255" },
+    { group: "C", name: "Yellow C-Mix", dmx: "0~255", display: "'%.1f%%',0~100", colour: "255,255,0" },
+    { group: "C", name: "Red C-Mix", dmx: "0~255", display: "'%.1f%%',0~100", colour: "255,0,0" },
+    { group: "C", name: "Green C-Mix", dmx: "0~255", display: "'%.1f%%',0~100", colour: "0,255,0" },
+    { group: "C", name: "Blue C-Mix", dmx: "0~255", display: "'%.1f%%',0~100", colour: "0,0,255" },
+    { group: "C", name: "CTO Mix", dmx: "0~255", display: "'%.1f%%',0~100", colour: "255,210,120" },
+    { group: "C", name: "White C-Mix", dmx: "0~255", display: "'%.1f%%',0~100", colour: "255,255,255" },
+    { group: "C", name: "Amber C-Mix", dmx: "0~255", display: "'%.1f%%',0~100", colour: "255,191,0" },
+    { group: "C", name: "Index", dmx: "0~0", display: "'Index %.f%%',0~100" },
+    { group: "C", name: "Scroll CW", dmx: "0~0", display: "'Scroll CW     %.f%%',100~0" },
+    { group: "C", name: "No Scroll", dmx: "0~0", display: "'No Scroll'" },
+    { group: "C", name: "Scroll CCW", dmx: "0~0", display: "'Scroll CCW    %.f%%',0~100" },
+    { group: "C", name: "Generic %", dmx: "0~255", display: "'%.f%%',0~100" },
+    { group: "G", name: "Open", dmx: "0~0", display: "'Open'" },
+    { group: "G", name: "Gobo 1", dmx: "0~0", display: "'Gobo 1'" },
+    { group: "G", name: "Index", dmx: "0~127", display: "'Index %.f%%',0~100" },
+    { group: "G", name: "Spin CW", dmx: "0~0", display: "'Spin CW %.f%%',100~0" },
+    { group: "G", name: "No Spin", dmx: "0~0", display: "'No Spin'" },
+    { group: "G", name: "Spin CCW", dmx: "0~0", display: "'Spin CCW %.f%%',0~100" },
+    { group: "G", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255" },
+    { group: "B", name: "Iris", dmx: "0~255", display: "'%.1f%%',0~100" },
+    { group: "B", name: "Focus", dmx: "0~255", display: "'%.1f%%',0~100" },
+    { group: "B", name: "Frost", dmx: "0~255", display: "'%.1f%%',0~100" },
+    { group: "B", name: "Zoom", dmx: "0~255", display: "'%.1f%%',0~100" },
+    { group: "B", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255" },
+    { group: "B", name: "Generic %", dmx: "0~255", display: "'%.f%%',0~100" },
+    { group: "E", name: "Open", dmx: "0~0", display: "'Open'" },
+    { group: "E", name: "Prism", dmx: "0~255", display: "'Prism'" },
+    { group: "E", name: "Spin CW", dmx: "0~0", display: "'Spin CW %.f%%',100~0" },
+    { group: "E", name: "No Spin", dmx: "0~0", display: "'No Spin'" },
+    { group: "E", name: "Spin CCW", dmx: "0~0", display: "'Spin CCW %.f%%',0~100" },
+    { group: "E", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255" },
+    { group: "S", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255" },
+    { group: "S", name: "Safe", dmx: "0~0", display: "'Safe'" },
+    { group: "S", name: "Reset", dmx: "0~0", display: "'Reset'" },
+    { group: "S", name: "Lamp On", dmx: "0~0", display: "'Lamp On'" },
+    { group: "S", name: "Lamp Off", dmx: "0~0", display: "'Lamp Off'" },
+    { group: "S", name: "Generic %", dmx: "0~255", display: "'%.f%%',0~100" },
   ];
 
   function findFuncPreset(name, group) {
@@ -1038,7 +1048,7 @@
 
   function defaultFunctionFor(attrId) {
     const byAttr = {
-      Dimmer: () => findFuncPreset("8bit Dimmer", "I"),
+      Dimmer: () => findFuncPreset("Dimmer", "I"),
       Shutter: () => findFuncPreset("Closed", "I"),
       Pan: () => findFuncPreset("Pan", "P"),
       Tilt: () => findFuncPreset("Tilt", "P"),
@@ -1051,21 +1061,67 @@
     const p = (byAttr[attrId] || (() => findFuncPreset("Raw DMX", "I")))();
     return {
       id: "1",
-      name: p.name === "8bit Dimmer" ? "Dimmer" : p.name,
+      name: p.name,
       dmx: p.dmx,
       display: p.display,
       colour: p.colour,
     };
   }
 
+  const TEMPLATE_LOCATE = {
+    Generic: { locate: "1", powerOn: "1" },
+    Reserved: { locate: "1:0", powerOn: "1:0" },
+    Dimmer: { locate: "1:100", powerOn: "1:0" },
+    Pan: { locate: "1:50", powerOn: "1:50" },
+    Tilt: { locate: "1:50", powerOn: "1:50" },
+    Shutter: { locate: "1:0", powerOn: "1:0" },
+    Iris: { locate: "1:100", powerOn: "1:100" },
+    Focus: { locate: "1:50", powerOn: "1:50" },
+    Zoom: { locate: "1:50", powerOn: "1:50" },
+    Speed: { locate: "1:100", powerOn: "1:100" },
+    PT_Speed: { locate: "1:100", powerOn: "1:100" },
+    Red: { locate: "1:100", powerOn: "1:100", highlight: "1:100", lowlight: "1:0" },
+    Green: { locate: "1:100", powerOn: "1:100", highlight: "1:100", lowlight: "1:0" },
+    Blue: { locate: "1:100", powerOn: "1:100", highlight: "1:0", lowlight: "1:90" },
+    Cyan: { locate: "1:0", powerOn: "1:0", highlight: "1:0", lowlight: "1:100" },
+    Magenta: { locate: "1:0", powerOn: "1:0", highlight: "1:0", lowlight: "1:100" },
+    Yellow: { locate: "1:0", powerOn: "1:0", highlight: "1:100", lowlight: "1:20" },
+  };
+
+  /** Colour-mix attributes in Standard.d4t are created with one function already attached. */
+  const TEMPLATE_STARTER = {
+    Cyan: "Cyan C-Mix",
+    Magenta: "Magenta C-Mix",
+    Yellow: "Yellow C-Mix",
+    Red: "Red C-Mix",
+    Green: "Green C-Mix",
+    Blue: "Blue C-Mix",
+    CTO: "CTO Mix",
+    White: "White C-Mix",
+    Amber: "Amber C-Mix",
+  };
+
+  function showFunctionsFor(attr) {
+    if (!attr) return;
+    catalogTab = "functions";
+    funcCatalogGroup = attr.group || "S";
+  }
+
   function addAttributeFromCatalog(item) {
     const id = item.id;
     if (state.attributes.some((a) => a.id === id)) {
-      // Allow duplicate visual names with unique instance IDs like Colour1 already used
       setStatus(`El atributo ID "${id}" ya existe (debe ser único).`);
+      const existing = state.attributes.find((a) => a.id === id);
+      selection = { kind: "attribute", id };
+      showFunctionsFor(existing);
+      propsTab = "properties";
+      render();
       return;
     }
     const resolution = item.id === "Pan" || item.id === "Tilt" ? "16-bit" : "8-bit";
+    const loc = TEMPLATE_LOCATE[id] || { locate: "1:0", powerOn: "1:0" };
+    const starterName = TEMPLATE_STARTER[id];
+    const starter = starterName ? findFuncPreset(starterName, item.group || "C") : null;
     state.attributes.push({
       id,
       name: item.name,
@@ -1074,33 +1130,43 @@
       page: item.page || "1",
       wheel: item.wheel || "Wheel 1",
       resolution,
-      functions: [defaultFunctionFor(id)],
-      locate: "1:100",
+      functions: starter
+        ? [{ id: "1", name: starter.name, dmx: starter.dmx, display: starter.display, colour: starter.colour || "" }]
+        : [],
+      locate: loc.locate,
+      powerOn: loc.powerOn,
+      highlight: loc.highlight || "",
+      lowlight: loc.lowlight || "",
     });
+    const attr = findAttr(id);
     selection = { kind: "attribute", id };
+    showFunctionsFor(attr);
     propsTab = "properties";
     markDirty();
-    setStatus(`Atributo añadido: ${item.name}`);
+    setStatus(`Atributo añadido: ${item.name}. Funciones del grupo ${attr.group}.`);
     render();
   }
 
   function addFunctionToSelected(fn) {
-    if (selection.kind !== "attribute") {
-      setStatus("Selecciona un atributo en Navigation Pane.");
+    const attrId = selection.kind === "attribute" || selection.kind === "function" ? selection.id : "";
+    const attr = findAttr(attrId);
+    if (!attr) {
+      setStatus("Selecciona un atributo. Personality Builder cuelga la función debajo de ese atributo.");
       return;
     }
-    const attr = findAttr(selection.id);
-    if (!attr) return;
+    const index = attr.functions.length;
     attr.functions.push({
-      id: String(attr.functions.length + 1),
+      id: String(index + 1),
       name: fn.name,
       dmx: fn.dmx,
       display: fn.display,
-      colour: fn.colour,
+      colour: fn.colour || "",
     });
+    selection = { kind: "function", id: attr.id, index };
+    showFunctionsFor(attr);
     propsTab = "dmx";
     markDirty();
-    setStatus(`Función añadida a ${attr.name}: ${fn.name}`);
+    setStatus(`Función bajo ${attr.name}: ${fn.name}`);
     render();
   }
 
@@ -1999,9 +2065,17 @@
     const attrNodes = state.attributes
       .map((a) => {
         const sel = selection.kind === "attribute" && selection.id === a.id ? "selected" : "";
-        return `<li><div class="node ${sel}" data-kind="attribute" data-id="${esc(a.id)}"><span class="twist"></span>${pbIcon(a.name)}<span>${esc(
-          a.name
-        )}</span></div></li>`;
+        const kids = (a.functions || [])
+          .map((fn, i) => {
+            const fsel = selection.kind === "function" && selection.id === a.id && Number(selection.index) === i ? "selected" : "";
+            return `<li><div class="node ${fsel}" data-kind="function" data-id="${esc(a.id)}" data-index="${i}"><span class="twist"></span><span class="pb-ico fn"></span><span>${esc(
+              fn.name
+            )}</span></div></li>`;
+          })
+          .join("");
+        return `<li><div class="node ${sel}" data-kind="attribute" data-id="${esc(a.id)}"><span class="twist">${
+          kids ? "▾" : ""
+        }</span>${pbIcon(a.name)}<span>${esc(a.name)}</span></div><ul>${kids}</ul></li>`;
       })
       .join("");
     const modeNodes = state.modes
@@ -2105,7 +2179,7 @@
         })
       ).join("")}</div>`;
     } else if (catalogTab === "current") {
-      const a = selection.kind === "attribute" ? findAttr(selection.id) : state.attributes[0];
+      const a = selection.kind === "attribute" || selection.kind === "function" ? findAttr(selection.id) : null;
       if (!a) body.innerHTML = `<p class="empty">Select an attribute to see its current functions.</p>`;
       else {
         const rows = (a.functions || [])
@@ -2565,7 +2639,7 @@
   }
 
   function renderDmxTab() {
-    if (selection.kind !== "attribute") return `<p class="empty">${esc(t("dmx.selectAttr"))}</p>`;
+    if (selection.kind !== "attribute" && selection.kind !== "function") return `<p class="empty">${esc(t("dmx.selectAttr"))}</p>`;
     const a = findAttr(selection.id);
     if (!a) return "";
     ensureSeqUiForAttr(a);
@@ -3206,7 +3280,7 @@
   }
 
   function bindSeqHandlers() {
-    if (propsTab !== "dmx" || selection.kind !== "attribute") return;
+    if (propsTab !== "dmx" || (selection.kind !== "attribute" && selection.kind !== "function")) return;
     if (!document.getElementById("seq-panel")) return;
 
     const refresh = () => updateSeqPreview();
@@ -3384,8 +3458,15 @@
     else if (kind === "attributes") {
       selection = { kind: "attributes" };
       catalogTab = "attributes";
-    } else if (kind === "attribute" || kind === "mode-attr") selection = { kind: "attribute", id: node.dataset.id };
-    else if (kind === "modes") {
+    }     else if (kind === "attribute" || kind === "mode-attr") {
+      selection = { kind: "attribute", id: node.dataset.id };
+      showFunctionsFor(findAttr(node.dataset.id));
+      propsTab = "properties";
+    } else if (kind === "function") {
+      selection = { kind: "function", id: node.dataset.id, index: Number(node.dataset.index) };
+      showFunctionsFor(findAttr(node.dataset.id));
+      propsTab = "dmx";
+    } else if (kind === "modes") {
       selection = { kind: "modes" };
       catalogTab = "modes";
       propsTab = "properties";
@@ -3412,7 +3493,6 @@
       setStatus(`${kind}: not in this personality.`);
       return;
     }
-    if (kind === "attribute" || kind === "mode-attr") propsTab = "properties";
     if (kind === "mode") propsTab = "channels";
     if (kind === "fixture") propsTab = "properties";
     render();
