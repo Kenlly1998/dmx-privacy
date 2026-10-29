@@ -34,12 +34,9 @@ Réplica del shell **Personality Builder 3.4.1** (WinForms): menú File/Edit/Vie
 ## Flujo recomendado
 
 1. **File → New** (o abre un `.d4`).
-2. Tools → **Mode-first from channels…** (o Import channel table) → pega el patch del manual.
-3. Ajusta Manufacturer / Name en Properties (nodo Fixture).
-4. Refina **DMX Values**, **Channels**, **Locate Values**, **Cells**.
-5. Tools → **Run linter** → **File → Save** (`.d4`) → copia a `Documents\Titan\Personalities` (PC) o `D:\Personalities` (consola) y reinicia Titan.
-
-Alternativa clásica PB: Attributes catalog (+) → Modes → Created Attributes.
+2. El árbol cubre History, Manual, Physical, Attributes, Modes, Macros y Palettes. Swatch está en View.
+3. Tools → **Mode-first** o el catálogo de atributos, luego Conditions / Cells / Locate si el manual lo pide.
+4. **File → Save** escribe `.d4`. **Generate R20 channel sheet** escribe la lista de canales (no el binario Pearl).
 
 ## Abrir archivos
 

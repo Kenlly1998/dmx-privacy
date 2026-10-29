@@ -59,14 +59,15 @@ Fuente pública: [Avolites Personality Library](https://personalities.avolites.c
 
 ### Gaps de la réplica vs corpus real
 
-1. Wizard **Condition** (ColourFunc / GoboFunc) — hoy solo aviso en linter.
-2. Export/import completo de **AttributeLink**, **ModeLink** a modos-celda, **VirtualControl**.
-3. Palettes / Macros / Swatch UI (stubs); AtlaBase/RDM campos en Properties.
-4. ~~Locate extendido (`PowerOn`, `Highlight`, `Lowlight`)~~ — pestaña Locate Values + export.
+1. Wizard Condition visual (arrastrar funciones) — el enlace If / Function IDs / Else sí se edita y se exporta.
+2. ModeLink a un modo celda se crea Hidden si falta; AttributeLink se edita como lista Source,Target.
+3. Palettes, Macros, History, Manual, Physical, Swatch/Thumbnail y AtlaBase ModeID están en el shell y en el `.d4`.
+4. Generate R20 escribe la hoja de canales (`.r20.txt`). El binario Pearl R20 no se reproduce.
+5. Export GDTF/MVR/OFL sigue siendo solo import.
 
 ## Réplica (shell PB 3.4.1)
 
-Prioridad: layout WinForms idéntico (menubar, left tree, catalog-above-props, tabs oficiales, property grid + help bar). Mejoras (import GDTF/MVR/OFL, Mode-first, duplicate mode, range sequencer, i18n) quedan en File/Tools sin alterar el chrome oficial.
+Prioridad: layout WinForms (menubar, left tree, catalog-above-props, tabs oficiales). El modelo `.d4` cubre Control, Conditions, Modes, Cells, Macros, Palettes, History, Physical y Swatch. Mejoras (import GDTF/MVR/OFL, Mode-first, duplicate mode, range sequencer, i18n) siguen en File/Tools.
 
 `catalog.json` deriva IDs/nombres/grupos/wheels observados (interop). No se redistribuye el MSI ni `Standard.d4t` ni `.d4` oficiales de Avolites.
 

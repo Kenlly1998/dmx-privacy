@@ -16,6 +16,9 @@
           <button type="button" data-act="open">Open...<span class="accel">Ctrl+O</span></button>
           <button type="button" data-act="save">Save<span class="accel">Ctrl+S</span></button>
           <button type="button" data-act="saveas">Save As...</button>
+          <button type="button" data-act="close">Close</button>
+          <hr />
+          <button type="button" data-act="r20">Generate R20 channel sheet...</button>
           <hr />
           <button type="button" data-act="import-gdtf">Import GDTF / MVR / OFL...</button>
           <button type="button" data-act="import-table">Import channel table...</button>
@@ -26,7 +29,11 @@
       <div class="menu">
         <button type="button" class="menu-btn" data-menu="edit">Edit</button>
         <div class="menu-dropdown" id="menu-edit" hidden>
+          <button type="button" data-act="undo">Undo<span class="accel">Ctrl+Z</span></button>
+          <button type="button" data-act="redo">Redo<span class="accel">Ctrl+Y</span></button>
+          <hr />
           <button type="button" data-act="dup-mode" title="Duplicate selected mode">Duplicate Mode</button>
+          <button type="button" data-act="add-cond">Add Condition</button>
         </div>
       </div>
       <div class="menu">
@@ -35,6 +42,11 @@
           <button type="button" data-act="view-attributes">Attributes catalog</button>
           <button type="button" data-act="view-functions">Functions catalog</button>
           <button type="button" data-act="view-modes">Modes</button>
+          <button type="button" data-act="view-history">History</button>
+          <button type="button" data-act="view-physical">Physical</button>
+          <button type="button" data-act="view-macros">Macros</button>
+          <button type="button" data-act="view-palettes">Palettes</button>
+          <button type="button" data-act="view-swatch">Swatch</button>
         </div>
       </div>
       <div class="menu">

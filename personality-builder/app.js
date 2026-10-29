@@ -235,17 +235,53 @@
     return "";
   }
 
-  function physicalXmlBlock(indent) {
+  function physicalXmlBlock(indent, phys) {
+    const p = { ...emptyPhysical(), ...(phys || {}) };
     const sp = " ".repeat(indent);
     return [
       `${sp}<Physical>`,
-      `${sp}  <Bulb Type="" Lumens="" ColourTemp="" />`,
-      `${sp}  <Lens Name="" Degrees="" />`,
-      `${sp}  <Weight Kg="" />`,
-      `${sp}  <Size Height="" Width="" Depth="" />`,
-      `${sp}  <Focus Type="Fixed" PanMax="0" TiltMax="0" PanMaxSpeed="0" TiltMaxSpeed="0" />`,
+      `${sp}  <Bulb Type="${xmlAttr(p.bulbType)}" Lumens="${xmlAttr(p.lumens)}" ColourTemp="${xmlAttr(p.colourTemp)}" />`,
+      `${sp}  <Lens Name="${xmlAttr(p.lensName)}" Degrees="${xmlAttr(p.degrees)}" />`,
+      `${sp}  <Weight Kg="${xmlAttr(p.weightKg)}" />`,
+      `${sp}  <Size Height="${xmlAttr(p.height)}" Width="${xmlAttr(p.width)}" Depth="${xmlAttr(p.depth)}" />`,
+      `${sp}  <Focus Type="${xmlAttr(p.focusType || "Fixed")}" PanMax="${xmlAttr(p.panMax || "0")}" TiltMax="${xmlAttr(
+        p.tiltMax || "0"
+      )}" PanMaxSpeed="${xmlAttr(p.panMaxSpeed || "0")}" TiltMaxSpeed="${xmlAttr(p.tiltMaxSpeed || "0")}" />`,
       `${sp}</Physical>`,
     ];
+  }
+
+  function readPhysicalEl(el) {
+    const p = emptyPhysical();
+    if (!el) return p;
+    const bulb = el.querySelector(":scope > Bulb");
+    const lens = el.querySelector(":scope > Lens");
+    const weight = el.querySelector(":scope > Weight");
+    const size = el.querySelector(":scope > Size");
+    const focus = el.querySelector(":scope > Focus");
+    if (bulb) {
+      p.bulbType = bulb.getAttribute("Type") || "";
+      p.lumens = bulb.getAttribute("Lumens") || "";
+      p.colourTemp = bulb.getAttribute("ColourTemp") || "";
+    }
+    if (lens) {
+      p.lensName = lens.getAttribute("Name") || "";
+      p.degrees = lens.getAttribute("Degrees") || "";
+    }
+    if (weight) p.weightKg = weight.getAttribute("Kg") || "";
+    if (size) {
+      p.height = size.getAttribute("Height") || "";
+      p.width = size.getAttribute("Width") || "";
+      p.depth = size.getAttribute("Depth") || "";
+    }
+    if (focus) {
+      p.focusType = focus.getAttribute("Type") || "Fixed";
+      p.panMax = focus.getAttribute("PanMax") || "0";
+      p.tiltMax = focus.getAttribute("TiltMax") || "0";
+      p.panMaxSpeed = focus.getAttribute("PanMaxSpeed") || "0";
+      p.tiltMaxSpeed = focus.getAttribute("TiltMaxSpeed") || "0";
+    }
+    return p;
   }
 
   function resolveVirtualControl(inc, mode, fx) {
@@ -286,6 +322,25 @@
     window.PB_I18N?.applyDom?.();
   }
 
+  function emptyPhysical() {
+    return {
+      bulbType: "",
+      lumens: "",
+      colourTemp: "",
+      lensName: "",
+      degrees: "",
+      weightKg: "",
+      height: "",
+      width: "",
+      depth: "",
+      focusType: "Fixed",
+      panMax: "0",
+      tiltMax: "0",
+      panMaxSpeed: "0",
+      tiltMaxSpeed: "0",
+    };
+  }
+
   function createEmptyFixture() {
     return {
       manufacturer: "",
@@ -295,10 +350,23 @@
       tags: "",
       updateVersionOnDirty: true,
       atlaBase: "00000000-0000-0000-0000-000000000000",
+      atlaModeId: "",
       rdm: "ESTA: -1 Model: -1",
+      copyright: "",
+      history: [],
+      manual: { filename: "", summary: "" },
+      physical: emptyPhysical(),
+      macros: [],
+      paletteGroups: [],
+      thumbnail: "",
+      swatches: [],
       attributes: [],
       modes: [],
     };
+  }
+
+  function pbDate(d = new Date()) {
+    return `${String(d.getDate()).padStart(2, "0")}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getFullYear()).slice(2)}`;
   }
 
   function createEmptyCells() {
@@ -320,6 +388,7 @@
     if (!Array.isArray(mode.cells.cells)) mode.cells.cells = [];
     if (!Array.isArray(mode.cells.customOrder)) mode.cells.customOrder = [];
     if (!Array.isArray(mode.cells.masterIds)) mode.cells.masterIds = [];
+    if (!mode.cells.masterMeta || typeof mode.cells.masterMeta !== "object") mode.cells.masterMeta = {};
     return mode.cells;
   }
 
@@ -472,10 +541,43 @@
     return state.modes.find((m) => m.name === name);
   }
 
+  let undoStack = [];
+  let redoStack = [];
+  let undoLock = false;
+  let lastSnap = "";
+
   function markDirty() {
+    if (!undoLock && lastSnap) {
+      const prev = undoStack[undoStack.length - 1];
+      if (prev !== lastSnap) undoStack.push(lastSnap);
+      if (undoStack.length > 40) undoStack.shift();
+      redoStack = [];
+    }
     dirty = true;
     updateTitle();
     scheduleLint();
+  }
+
+  function undoChange() {
+    if (!undoStack.length) return;
+    undoLock = true;
+    redoStack.push(JSON.stringify(state));
+    state = JSON.parse(undoStack.pop());
+    undoLock = false;
+    dirty = true;
+    render();
+    setStatus("Undo.");
+  }
+
+  function redoChange() {
+    if (!redoStack.length) return;
+    undoLock = true;
+    undoStack.push(JSON.stringify(state));
+    state = JSON.parse(redoStack.pop());
+    undoLock = false;
+    dirty = true;
+    render();
+    setStatus("Redo.");
   }
 
   let lintTimer = null;
@@ -748,14 +850,6 @@
     if (!state.modes.length) issues.push({ level: "warn", msg: "Fixture sin modes." });
     else if (state.modes.every((m) => !Number(m.channels) && !m.includes.length && !m.cells?.cells?.length)) {
       issues.push({ level: "warn", msg: "Hay modes pero ninguno tiene canales / includes / cells." });
-    }
-    for (const attr of state.attributes) {
-      if (attr.hasConditions) {
-        issues.push({
-          level: "warn",
-          msg: `${attr.id}: Condition/ColourFunc presente en el .d4 (lectura parcial; wizard Condition pendiente).`,
-        });
-      }
     }
     let virtualCount = 0;
     for (const mode of state.modes) {
@@ -1190,6 +1284,36 @@
     }
   }
 
+  function exportR20Sheet() {
+    const lines = [
+      "; Channel sheet from Personality Builder replica",
+      "; Classic R20 binary personalities are not reproduced — this is the mode/channel list PB shows before an R20 export.",
+      `NAME=${state.name || ""}`,
+      `COMPANY=${state.manufacturer || ""}`,
+      `VERSION=${state.personalityVersion || "0"}`,
+    ];
+    for (const mode of state.modes) {
+      if (mode.hidden) continue;
+      lines.push("");
+      lines.push(`MODE=${mode.name}`);
+      lines.push(`CHANNELS=${mode.channels}`);
+      for (const inc of mode.includes || []) {
+        lines.push(`CH ${inc.channelOffset || "-"} ${inc.id} WHEEL=${inc.wheel || ""}`);
+      }
+      for (const cell of mode.cells?.cells || []) {
+        lines.push(`CELL ${cell.name} X=${cell.x} Y=${cell.y} OFFSET=${cell.channelOffset} MODELINK=${cell.modeLink || mode.cells.modeLink || ""}`);
+      }
+    }
+    const blob = new Blob([lines.join("\r\n") + "\r\n"], { type: "text/plain" });
+    const a = document.createElement("a");
+    const safeName = (state.name || "Fixture").replace(/[^\w\- ]+/g, "").trim() || "Fixture";
+    a.href = URL.createObjectURL(blob);
+    a.download = `${safeName}.r20.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    setStatus(`R20 channel sheet saved (${a.download}).`);
+  }
+
   function serializeIncludeAttribute(inc, mode, fx) {
     const parts = [`ID="${xmlAttr(inc.id)}"`];
     if (inc.channelOffset) parts.push(`ChannelOffset="${xmlAttr(inc.channelOffset)}"`);
@@ -1208,8 +1332,8 @@
     if (!mode.id) mode.id = modeId;
     const channels = Number(mode.channels) || 0;
     lines.push(`  <Mode Name="${xmlAttr(mode.name)}" Channels="${channels}" Id="${xmlAttr(modeId)}"${hidden}>`);
-    lines.push(`    <Import PearlRef="" DiamondRef="" WysiwygRef="" />`);
-    lines.push(...physicalXmlBlock(4));
+    lines.push(`    <Import PearlRef="${xmlAttr(mode.pearlRef || "")}" DiamondRef="${xmlAttr(mode.diamondRef || "")}" WysiwygRef="${xmlAttr(mode.wysiwygRef || "")}" />`);
+    lines.push(...physicalXmlBlock(4, mode.physical || fx.physical));
     const hasCells = mode.cells && Array.isArray(mode.cells.cells) && mode.cells.cells.length > 0;
     if (hasCells) {
       // Official cell modes use empty Include; masters live under Cells
@@ -1221,8 +1345,10 @@
         : fx.attributes.map((a) => a.id);
       for (const mid of masters) {
         const attr = fx.attributes.find((a) => a.id === mid);
-        const wheel = wheelIndexForExport(mid, attr?.wheel);
-        lines.push(`        <Attribute ID="${xmlAttr(mid)}" Wheel="${xmlAttr(wheel)}" />`);
+        const meta = mode.cells.masterMeta?.[mid] || {};
+        const wheel = wheelIndexForExport(mid, meta.wheel || attr?.wheel);
+        const off = meta.channelOffset ? ` ChannelOffset="${xmlAttr(meta.channelOffset)}"` : "";
+        lines.push(`        <Attribute ID="${xmlAttr(mid)}"${off} Wheel="${xmlAttr(wheel)}" />`);
       }
       lines.push(`      </Master>`);
       const modeLink = String(mode.cells.modeLink || "").trim() || "cell";
@@ -1320,20 +1446,28 @@
       )}">`
     );
     const year = new Date().getFullYear();
-    lines.push(`  <Copyright Notice="Replica Personality Builder — independent .d4 export ${year}" />`);
-    const today = new Date();
-    const d = `${String(today.getDate()).padStart(2, "0")}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(
-      today.getFullYear()
-    ).slice(2)}`;
-    lines.push(
-      `  <History Date="${d}" Author="Personality Builder Replica" Comment="Created" Version="${xmlAttr(version)}" />`
-    );
-    if (fx.tags) lines.push(`  <!-- Tags: ${xmlAttr(fx.tags)} -->`);
-    lines.push(`  <Manual Filename="" Summary="" />`);
-    if (fx.atlaBase && fx.atlaBase !== "00000000-0000-0000-0000-000000000000") {
-      lines.push(`  <AtlaBase TypeID="${xmlAttr(fx.atlaBase)}" />`);
+    const notice = fx.copyright || `Replica Personality Builder — independent .d4 export ${year}`;
+    lines.push(`  <Copyright Notice="${xmlAttr(notice)}" />`);
+    const history = fx.history?.length
+      ? fx.history
+      : [{ date: pbDate(), author: "Personality Builder Replica", comment: "Created", version }];
+    for (const h of history) {
+      const ver = h.version ? ` Version="${xmlAttr(h.version)}"` : "";
+      lines.push(
+        `  <History Date="${xmlAttr(h.date || pbDate())}" Author="${xmlAttr(h.author || "")}" Comment="${xmlAttr(
+          h.comment || ""
+        )}"${ver} />`
+      );
     }
-    if (fx.rdm) lines.push(`  <!-- RDM: ${xmlAttr(fx.rdm)} -->`);
+    if (fx.tags) lines.push(`  <!-- Tags: ${xmlAttr(fx.tags)} -->`);
+    const man = fx.manual || { filename: "", summary: "" };
+    lines.push(`  <Manual Filename="${xmlAttr(man.filename || "")}" Summary="${xmlAttr(man.summary || "")}" />`);
+    if (fx.thumbnail) lines.push(`  <Thumbnail>${xmlAttr(fx.thumbnail)}</Thumbnail>`);
+    if (fx.atlaBase && fx.atlaBase !== "00000000-0000-0000-0000-000000000000") {
+      const modeId = fx.atlaModeId ? ` ModeID="${xmlAttr(fx.atlaModeId)}"` : "";
+      lines.push(`  <AtlaBase TypeID="${xmlAttr(fx.atlaBase)}"${modeId} />`);
+    }
+    if (fx.rdm && fx.rdm !== "ESTA: -1 Model: -1") lines.push(`  <!-- RDM: ${xmlAttr(fx.rdm)} -->`);
     lines.push(`  <Control>`);
     for (const attr of fx.attributes) {
       const size = attr.resolution === "16-bit" ? ` Size="2"` : "";
@@ -1349,37 +1483,40 @@
       let locateAttrs = `Locate="${xmlAttr(locate)}" PowerOn="${xmlAttr(powerOn)}"`;
       if (highlight) locateAttrs += ` Highlight="${xmlAttr(highlight)}"`;
       if (lowlight) locateAttrs += ` Lowlight="${xmlAttr(lowlight)}"`;
+      if (attr.locateClear) locateAttrs += ` Clear="${xmlAttr(attr.locateClear)}"`;
       lines.push(`      <Locate ${locateAttrs} />`);
-      const fns = attr.functions?.length ? attr.functions : [{ name: attr.name || attr.id, dmx: "0~255", display: "" }];
-      // Preserve Condition blocks from imported .d4 (read/round-trip). Full Condition wizard is still Tools-future.
-      if (attr.conditions?.length) {
-        for (const cond of attr.conditions) {
-          const ifAttr = cond.ifExpr ? ` If="${xmlAttr(cond.ifExpr)}"` : "";
-          lines.push(`      <Condition${ifAttr}>`);
-          if (cond.rawInner) {
-            lines.push(
-              ...String(cond.rawInner)
-                .split(/\r?\n/)
-                .map((l) => l.trim())
-                .filter(Boolean)
-                .map((l) => `        ${l}`)
-            );
-          }
-          lines.push(`      </Condition>`);
+      for (const cond of attr.conditions || []) {
+        if (cond.elseBranch) {
+          lines.push(`      <Else ID="${xmlAttr(cond.functionIds || "")}" />`);
+        } else {
+          const name = cond.name ? ` Name="${xmlAttr(cond.name)}"` : "";
+          const iff = cond.ifExpr ? ` If="${xmlAttr(cond.ifExpr)}"` : "";
+          lines.push(`      <Condition${name} ID="${xmlAttr(cond.functionIds || "")}"${iff} />`);
         }
-      } else {
-        fns.forEach((fn, idx) => {
-          const colour = fn.colour ? ` Colour="${xmlAttr(fn.colour)}"` : "";
-          const intensity = attr.id === "Dimmer" ? ` Intensity="0~0"` : "";
-          const display = fn.display || fn.name || "";
-          const dmx = fn.dmx || (attr.resolution === "16-bit" ? "0~65535" : "0~255");
-          lines.push(
-            `      <Function ID="${idx + 1}" Name="${xmlAttr(fn.name || `Function ${idx + 1}`)}" Display="${xmlAttr(
-              display
-            )}" Dmx="${xmlAttr(dmx)}"${colour}${intensity} />`
-          );
-        });
       }
+      const fns = attr.functions?.length ? attr.functions : [{ name: attr.name || attr.id, dmx: "0~255", display: "" }];
+      const resNone = attr.resolution === "None";
+      fns.forEach((fn, idx) => {
+        const colour = fn.colour ? ` Colour="${xmlAttr(fn.colour)}"` : "";
+        const intensity = fn.intensity
+          ? ` Intensity="${xmlAttr(fn.intensity)}"`
+          : attr.id === "Dimmer"
+            ? ` Intensity="0~0"`
+            : "";
+        const update = fn.update ? ` Update="${xmlAttr(fn.update)}"` : "";
+        const goboO = fn.goboOrientation ? ` GoboOrientation="${xmlAttr(fn.goboOrientation)}"` : "";
+        const goboS = fn.goboSpin ? ` GoboSpin="${xmlAttr(fn.goboSpin)}"` : "";
+        const iris = fn.iris ? ` Iris="${xmlAttr(fn.iris)}"` : "";
+        const zoom = fn.zoom ? ` Zoom="${xmlAttr(fn.zoom)}"` : "";
+        const wheelPos = fn.wheelPosition ? ` WheelPosition="${xmlAttr(fn.wheelPosition)}"` : "";
+        const display = fn.display || fn.name || "";
+        const dmx = fn.dmx || (attr.resolution === "16-bit" ? "0~65535" : resNone ? "0~0" : "0~255");
+        lines.push(
+          `      <Function ID="${xmlAttr(fn.id || String(idx + 1))}" Name="${xmlAttr(fn.name || `Function ${idx + 1}`)}" Display="${xmlAttr(
+            display
+          )}" Dmx="${xmlAttr(dmx)}"${colour}${intensity}${update}${goboO}${goboS}${iris}${zoom}${wheelPos} />`
+        );
+      });
       lines.push(`    </Attribute>`);
     }
     lines.push(`  </Control>`);
@@ -1391,6 +1528,40 @@
     for (const mode of cellLinkModes) {
       lines.push(...serializeModeBody(mode, fx, { hidden: true }));
     }
+    if (fx.macros?.length) {
+      lines.push(`  <Macro>`);
+      for (const macro of fx.macros) {
+        lines.push(`    <Macro Name="${xmlAttr(macro.name || "Macro")}">`);
+        for (const step of macro.steps || []) {
+          lines.push(`      <Set Channel="${xmlAttr(step.channel || "")}" Delay="${xmlAttr(step.delay || "0")}" />`);
+        }
+        lines.push(`    </Macro>`);
+      }
+      lines.push(`  </Macro>`);
+    }
+    if (fx.paletteGroups?.length) {
+      lines.push(`  <Palettes>`);
+      for (const group of fx.paletteGroups) {
+        lines.push(`    <Group Name="${xmlAttr(group.name || "Group")}">`);
+        for (const pal of group.palettes || []) {
+          const legend = pal.legend ? ` Legend="${xmlAttr(pal.legend)}"` : "";
+          lines.push(
+            `      <Palette ID="${xmlAttr(pal.id || "1")}" Name="${xmlAttr(pal.name || "")}"${legend} Number="${xmlAttr(
+              pal.number || "0"
+            )}" Page="${xmlAttr(pal.page || "1")}" SetControl="${xmlAttr(pal.setControl || "")}" />`
+          );
+        }
+        lines.push(`    </Group>`);
+      }
+      lines.push(`  </Palettes>`);
+    }
+    if (fx.swatches?.length) {
+      lines.push(`  <swatchLibrary>`);
+      for (const sw of fx.swatches) {
+        lines.push(`    <Swatch id="${xmlAttr(sw.id)}">${sw.data || ""}</Swatch>`);
+      }
+      lines.push(`  </swatchLibrary>`);
+    }
     lines.push(`</Fixture>`);
     // Official personalities use CRLF; LF alone usually works but CRLF matches Titan/PB on Windows.
     return lines.join("\r\n") + "\r\n";
@@ -1399,6 +1570,7 @@
   // Test hook for Playwright / console round-trips
   window.__PB_TEST__ = {
     serializeD4,
+    parseD4Text,
     collectExportWarnings,
     wheelIndexForExport,
     getState: () => state,
@@ -1417,7 +1589,16 @@
       tags: next.tags || "",
       updateVersionOnDirty: next.updateVersionOnDirty !== false,
       atlaBase: next.atlaBase || "00000000-0000-0000-0000-000000000000",
+      atlaModeId: next.atlaModeId || "",
       rdm: next.rdm || "ESTA: -1 Model: -1",
+      copyright: next.copyright || "",
+      history: next.history || [],
+      manual: next.manual || { filename: "", summary: "" },
+      physical: { ...emptyPhysical(), ...(next.physical || {}) },
+      macros: next.macros || [],
+      paletteGroups: next.paletteGroups || [],
+      thumbnail: next.thumbnail || "",
+      swatches: next.swatches || [],
       attributes: next.attributes || [],
       modes: (next.modes || []).map((m) => ({
         ...m,
@@ -1455,31 +1636,93 @@
     next.name = root.getAttribute("Name") || "";
     next.shortName = root.getAttribute("ShortName") || next.name.slice(0, 10);
     next.personalityVersion = root.getAttribute("Version") || next.personalityVersion || "0";
+    const copy = root.querySelector(":scope > Copyright");
+    next.copyright = copy?.getAttribute("Notice") || "";
+    next.history = [...root.querySelectorAll(":scope > History")].map((h) => ({
+      date: h.getAttribute("Date") || "",
+      author: h.getAttribute("Author") || "",
+      comment: h.getAttribute("Comment") || "",
+      version: h.getAttribute("Version") || "",
+    }));
+    const manual = root.querySelector(":scope > Manual");
+    if (manual) {
+      next.manual = {
+        filename: manual.getAttribute("Filename") || "",
+        summary: manual.getAttribute("Summary") || "",
+      };
+    }
+    const thumb = root.querySelector(":scope > Thumbnail");
+    if (thumb) next.thumbnail = (thumb.textContent || "").trim();
+    next.swatches = [...root.querySelectorAll(":scope > swatchLibrary > Swatch")].map((sw) => ({
+      id: sw.getAttribute("id") || "",
+      data: (sw.textContent || "").trim(),
+    }));
+    const macroRoot = root.querySelector(":scope > Macro");
+    if (macroRoot) {
+      next.macros = [...macroRoot.querySelectorAll(":scope > Macro")].map((m) => ({
+        name: m.getAttribute("Name") || "Macro",
+        steps: [...m.querySelectorAll(":scope > Set")].map((s) => ({
+          channel: s.getAttribute("Channel") || "",
+          delay: s.getAttribute("Delay") || "0",
+        })),
+      }));
+    }
+    const palRoot = root.querySelector(":scope > Palettes");
+    if (palRoot) {
+      next.paletteGroups = [...palRoot.querySelectorAll(":scope > Group")].map((g) => ({
+        name: g.getAttribute("Name") || "Group",
+        palettes: [...g.querySelectorAll(":scope > Palette")].map((p) => ({
+          id: p.getAttribute("ID") || "",
+          name: p.getAttribute("Name") || "",
+          legend: p.getAttribute("Legend") || "",
+          number: p.getAttribute("Number") || "0",
+          page: p.getAttribute("Page") || "1",
+          setControl: p.getAttribute("SetControl") || "",
+        })),
+      }));
+    }
     for (const attrEl of root.querySelectorAll("Control > Attribute")) {
       const mapFn = (fn, i) => ({
         id: fn.getAttribute("ID") || String(i + 1),
         name: fn.getAttribute("Name") || "",
         dmx: fn.getAttribute("Dmx") || "0~255",
         display: fn.getAttribute("Display") || fn.getAttribute("Name") || "",
-        colour: fn.getAttribute("Colour") || undefined,
+        colour: fn.getAttribute("Colour") || "",
+        intensity: fn.getAttribute("Intensity") || "",
+        update: fn.getAttribute("Update") || "",
+        goboOrientation: fn.getAttribute("GoboOrientation") || "",
+        goboSpin: fn.getAttribute("GoboSpin") || "",
+        iris: fn.getAttribute("Iris") || "",
+        zoom: fn.getAttribute("Zoom") || "",
+        wheelPosition: fn.getAttribute("WheelPosition") || "",
       });
-      // Prefer direct Functions; if Attribute uses Condition-only layout, flatten for DMX Values editing.
-      let functions = [...attrEl.querySelectorAll(":scope > Function")].map(mapFn);
-      if (!functions.length) {
-        functions = [...attrEl.querySelectorAll(":scope > Condition Function")].map(mapFn);
-      }
+      const functions = [...attrEl.querySelectorAll(":scope > Function")].map(mapFn);
       const locateEl = attrEl.querySelector(":scope > Locate");
       const dmxSample = functions[0]?.dmx || "0~255";
-      const sizeAttr = Number(attrEl.getAttribute("Size") || 0);
-      const is16 = sizeAttr >= 2 || dmxSample.split("~").some((v) => Number(v) > 255);
+      const sizeAttr = attrEl.getAttribute("Size");
+      const allPoint = functions.length && functions.every((f) => f.dmx === "0~0" || f.dmx === "0~0.0");
+      const is16 = Number(sizeAttr || 0) >= 2 || dmxSample.split("~").some((v) => Number(v) > 255);
       const id = attrEl.getAttribute("ID") || `Attr${next.attributes.length + 1}`;
       const cat = ATTR_CATALOG.find((c) => c.id === id);
-      const conditions = [...attrEl.querySelectorAll(":scope > Condition")].map((cond) => ({
-        ifExpr: cond.getAttribute("If") || "",
-        elseBranch: cond.getAttribute("Else") === "true" || cond.tagName === "Else",
-        functionIds: [...cond.querySelectorAll("Function")].map((f) => f.getAttribute("ID") || f.getAttribute("Id") || "").filter(Boolean),
-        rawInner: cond.innerHTML.trim(),
-      }));
+      const conditions = [];
+      for (const el of attrEl.children) {
+        if (el.tagName === "Condition") {
+          const nested = [...el.querySelectorAll("Function")].map((f) => f.getAttribute("ID")).filter(Boolean);
+          conditions.push({
+            elseBranch: false,
+            name: el.getAttribute("Name") || "",
+            functionIds: el.getAttribute("ID") || nested.join(","),
+            ifExpr: el.getAttribute("If") || "",
+          });
+        } else if (el.tagName === "Else") {
+          conditions.push({
+            elseBranch: true,
+            name: "Else",
+            functionIds: el.getAttribute("ID") || "",
+            ifExpr: "",
+          });
+        }
+      }
       next.attributes.push({
         id,
         name: attrEl.getAttribute("Name") || "",
@@ -1487,18 +1730,22 @@
         bank: cat?.bank || "",
         page: cat?.page || "1",
         wheel: cat?.wheel || "Wheel 1",
-        resolution: is16 ? "16-bit" : "8-bit",
+        resolution: is16 ? "16-bit" : allPoint ? "None" : "8-bit",
         functions,
         locate: locateEl?.getAttribute("Locate") || "1:100",
         powerOn: locateEl?.getAttribute("PowerOn") || "",
         highlight: locateEl?.getAttribute("Highlight") || "",
         lowlight: locateEl?.getAttribute("Lowlight") || "",
+        locateClear: locateEl?.getAttribute("Clear") || "",
         conditions,
         hasConditions: conditions.length > 0,
       });
     }
     const atla = root.querySelector(":scope > AtlaBase");
-    if (atla) next.atlaBase = atla.getAttribute("TypeID") || next.atlaBase;
+    if (atla) {
+      next.atlaBase = atla.getAttribute("TypeID") || next.atlaBase;
+      next.atlaModeId = atla.getAttribute("ModeID") || "";
+    }
     for (const modeEl of root.querySelectorAll(":scope > Mode")) {
       const includes = [...modeEl.querySelectorAll(":scope > Include > Attribute")].map((a) => ({
         id: a.getAttribute("ID") || "",
@@ -1509,7 +1756,17 @@
       const cellsCfg = createEmptyCells();
       const cellsRoot = modeEl.querySelector(":scope > Cells");
       if (cellsRoot) {
-        cellsCfg.masterIds = [...cellsRoot.querySelectorAll("Master > Attribute")].map((a) => a.getAttribute("ID") || "").filter(Boolean);
+        cellsCfg.masterMeta = {};
+        const masterEls = [...cellsRoot.querySelectorAll("Master > Attribute")];
+        cellsCfg.masterIds = masterEls.map((a) => a.getAttribute("ID") || "").filter(Boolean);
+        for (const a of masterEls) {
+          const mid = a.getAttribute("ID") || "";
+          if (!mid) continue;
+          cellsCfg.masterMeta[mid] = {
+            channelOffset: a.getAttribute("ChannelOffset") || "",
+            wheel: a.getAttribute("Wheel") || "",
+          };
+        }
         const cellEls = [...cellsRoot.querySelectorAll(":scope > Cell")];
         cellsCfg.cells = cellEls.map((el, i) => ({
           id: el.getAttribute("ID") || `Cell${i + 1}`,
@@ -1540,6 +1797,8 @@
           cellsCfg.customOrder = cellsCfg.cells.map((c) => c.y * cellsCfg.cols + c.x);
         }
       }
+      const physEl = modeEl.querySelector(":scope > Physical");
+      const imp = modeEl.querySelector(":scope > Import");
       next.modes.push({
         name: modeEl.getAttribute("Name") || "Mode",
         id: modeEl.getAttribute("Id") || "",
@@ -1547,8 +1806,14 @@
         includes,
         cells: cellsCfg,
         hidden: String(modeEl.getAttribute("Hidden") || "").toLowerCase() === "true",
+        physical: physEl ? readPhysicalEl(physEl) : null,
+        pearlRef: imp?.getAttribute("PearlRef") || "",
+        diamondRef: imp?.getAttribute("DiamondRef") || "",
+        wysiwygRef: imp?.getAttribute("WysiwygRef") || "",
       });
     }
+    const firstPhys = next.modes.find((m) => m.physical)?.physical;
+    if (firstPhys) next.physical = { ...emptyPhysical(), ...firstPhys };
     return next;
   }
 
@@ -1735,9 +2000,9 @@
         state.name
       )}</div>
         <ul>
-          <li><div class="node" data-kind="history"><span class="twist"></span><span class="icon">🕒</span>History</div></li>
-          <li><div class="node" data-kind="manual"><span class="twist"></span><span class="icon">📄</span>Manual</div></li>
-          <li><div class="node" data-kind="physical"><span class="twist"></span><span class="icon">📐</span>Physical</div></li>
+          <li><div class="node ${selection.kind === "history" ? "selected" : ""}" data-kind="history"><span class="twist"></span><span class="icon">🕒</span>History</div></li>
+          <li><div class="node ${selection.kind === "manual" ? "selected" : ""}" data-kind="manual"><span class="twist"></span><span class="icon">📄</span>Manual</div></li>
+          <li><div class="node ${selection.kind === "physical" ? "selected" : ""}" data-kind="physical"><span class="twist"></span><span class="icon">📐</span>Physical</div></li>
           <li>
             <div class="node ${selection.kind === "attributes" ? "selected" : ""}" data-kind="attributes"><span class="twist">▾</span><span class="icon">▤</span>Attributes</div>
             <ul>${attrNodes}</ul>
@@ -1746,8 +2011,8 @@
             <div class="node ${selection.kind === "modes" ? "selected" : ""}" data-kind="modes"><span class="twist">▾</span><span class="icon">☰</span>Modes</div>
             <ul>${modeNodes}</ul>
           </li>
-          <li><div class="node" data-kind="macros"><span class="twist"></span><span class="icon">⌘</span>Macros</div></li>
-          <li><div class="node" data-kind="palettes"><span class="twist"></span><span class="icon">▣</span>Palettes</div></li>
+          <li><div class="node ${selection.kind === "macros" || selection.kind === "macro" ? "selected" : ""}" data-kind="macros"><span class="twist"></span><span class="icon">⌘</span>Macros</div></li>
+          <li><div class="node ${selection.kind === "palettes" || selection.kind === "palette" ? "selected" : ""}" data-kind="palettes"><span class="twist"></span><span class="icon">▣</span>Palettes</div></li>
         </ul>
       </li>`;
   }
@@ -1756,7 +2021,7 @@
     const body = document.getElementById("catalog-body");
     document.querySelectorAll("#catalog-tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === catalogTab));
 
-    const stub = (label) => `<p class="empty">${label} — pendiente en la réplica. Disponible en PB 3.4.1.</p>`;
+    const stub = (label) => `<p class="empty">${label}</p>`;
 
     if (catalogTab === "attributes") {
       const hero = !state.attributes.length && !state.modes.length ? creationHero() : "";
@@ -1816,11 +2081,58 @@
           <button type="button" class="add-btn" data-add>+</button>
         </div>`
       ).join("")}</div>`;
-    } else if (catalogTab === "current") body.innerHTML = stub("Current Functions");
-    else if (catalogTab === "history") body.innerHTML = stub("History");
-    else if (catalogTab === "macros") body.innerHTML = stub("Macros");
-    else if (catalogTab === "palettes") body.innerHTML = stub("Palettes");
-    else if (catalogTab === "swatch") body.innerHTML = stub("Swatch");
+    } else if (catalogTab === "current") {
+      const a = selection.kind === "attribute" ? findAttr(selection.id) : state.attributes[0];
+      if (!a) body.innerHTML = `<p class="empty">Select an attribute to see its current functions.</p>`;
+      else {
+        const rows = (a.functions || [])
+          .map((fn) => {
+            const cond = (a.conditions || []).find((c) =>
+              String(c.functionIds || "")
+                .split(",")
+                .map((s) => s.trim())
+                .includes(String(fn.id))
+            );
+            return `<tr><td>${esc(fn.id)}</td><td>${esc(fn.name)}</td><td>${esc(fn.dmx)}</td><td>${esc(fn.update || "")}</td><td>${esc(
+              cond ? (cond.elseBranch ? "Else" : cond.name || cond.ifExpr) : ""
+            )}</td></tr>`;
+          })
+          .join("");
+        body.innerHTML = `<p class="empty">${esc(a.name)} — current functions</p>
+          <table class="dmx-table"><thead><tr><th>ID</th><th>Name</th><th>DMX</th><th>Update</th><th>Condition</th></tr></thead><tbody>${
+            rows || `<tr><td colspan="5" class="empty">None</td></tr>`
+          }</tbody></table>`;
+      }
+    } else if (catalogTab === "history") {
+      body.innerHTML = `<div class="mode-list">${
+        (state.history || [])
+          .map((h, i) => `<div class="mode-row"><strong>${esc(h.date)}</strong> ${esc(h.author)} — ${esc(h.comment)}</div>`)
+          .join("") || `<p class="empty">No history entries. Edit them in Properties.</p>`
+      }</div>`;
+    } else if (catalogTab === "macros") {
+      body.innerHTML = `<div class="mode-list">${
+        (state.macros || [])
+          .map((m) => `<div class="mode-row"><strong>${esc(m.name)}</strong> <span class="mode-row-meta">${(m.steps || []).length} steps</span></div>`)
+          .join("") || `<p class="empty">No macros. Add them in Properties.</p>`
+      }</div>`;
+    } else if (catalogTab === "palettes") {
+      const n = (state.paletteGroups || []).reduce((s, g) => s + (g.palettes || []).length, 0);
+      body.innerHTML = `<div class="mode-list">${
+        (state.paletteGroups || [])
+          .map((g) => `<div class="mode-row"><strong>${esc(g.name)}</strong> <span class="mode-row-meta">${(g.palettes || []).length}</span></div>`)
+          .join("") || `<p class="empty">No palettes.</p>`
+      }<p class="empty">${n} palettes. Edit SetControl in Properties.</p></div>`;
+    } else if (catalogTab === "swatch") {
+      const cards = (state.swatches || [])
+        .map((sw) => {
+          const src = sw.data ? `data:image/png;base64,${sw.data}` : "";
+          return `<div class="catalog-item">${src ? `<img alt="" src="${src}" style="max-width:64px;max-height:64px" />` : `<div class="glyph">IMG</div>`}<div class="label">${esc(
+            sw.id.slice(0, 8)
+          )}</div></div>`;
+        })
+        .join("");
+      body.innerHTML = `<div class="catalog-grid">${cards || `<p class="empty">No swatches. Import from Properties → Swatch.</p>`}</div>`;
+    }
   }
 
   function renderProps() {
@@ -1921,10 +2233,159 @@
         </div>
         <p class="empty">Con orden Manual, haz clic en las celdas para definir la secuencia. Generar aplica offsets = inicio + (n−1)×ch/celda.</p>
         <div class="cell-section">
+          <div class="section-label">AttributeLink (todas las celdas) — SourceId → TargetId</div>
+          <textarea id="cell-links" rows="5">${esc(
+            (cfg.cells[0]?.links || [])
+              .map((l) => `${l.sourceId},${l.targetId}`)
+              .join("\n")
+          )}</textarea>
+          <p class="empty">Una línea por enlace: SourceId,TargetId. ModeLink arriba apunta al modo celda.</p>
+        </div>
+        <div class="cell-section">
           <div class="section-label">Orden generado</div>
           <div class="cell-order-list">${esc(orderPreview)}</div>
         </div>
       </div>`;
+  }
+
+  function renderHistoryEditor() {
+    setHelp("History entries stored in the .d4 (Date, Author, Comment).");
+    catalogTab = catalogTab === "history" ? catalogTab : catalogTab;
+    const rows = (state.history || [])
+      .map(
+        (h, i) => `<tr>
+        <td><input data-hist-i="${i}" data-hf="date" value="${esc(h.date)}" /></td>
+        <td><input data-hist-i="${i}" data-hf="author" value="${esc(h.author)}" /></td>
+        <td><input data-hist-i="${i}" data-hf="comment" value="${esc(h.comment)}" /></td>
+        <td><input data-hist-i="${i}" data-hf="version" value="${esc(h.version)}" /></td>
+        <td><button type="button" data-hist-del="${i}">×</button></td>
+      </tr>`
+      )
+      .join("");
+    return `${propsTypeHeader("History")}
+      <div class="toolbar"><button type="button" id="btn-add-hist">Add entry</button></div>
+      <table class="dmx-table"><thead><tr><th>Date</th><th>Author</th><th>Comment</th><th>Version</th><th></th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="5" class="empty">No history yet.</td></tr>`}</tbody></table>`;
+  }
+
+  function renderManualEditor() {
+    const m = state.manual || { filename: "", summary: "" };
+    setHelp("Manual filename and summary embedded in the personality.");
+    return `${propsTypeHeader("Manual")}
+      <table class="prop-grid">
+        <tr><th colspan="2">Manual</th></tr>
+        <tr><td class="label">Filename</td><td><input id="p-man-file" value="${esc(m.filename)}" /></td></tr>
+        <tr><td class="label">Summary</td><td><textarea id="p-man-sum" rows="6">${esc(m.summary)}</textarea></td></tr>
+      </table>`;
+  }
+
+  function renderPhysicalEditor() {
+    const p = state.physical || emptyPhysical();
+    setHelp("Physical data is written into each Mode (Bulb, Lens, Weight, Size, Focus).");
+    const field = (id, label, val) =>
+      `<tr><td class="label">${label}</td><td><input id="${id}" value="${esc(val)}" /></td></tr>`;
+    return `${propsTypeHeader("Physical")}
+      <table class="prop-grid">
+        <tr><th colspan="2">Bulb</th></tr>
+        ${field("phy-bulb", "Type", p.bulbType)}
+        ${field("phy-lumens", "Lumens", p.lumens)}
+        ${field("phy-ct", "ColourTemp", p.colourTemp)}
+        <tr><th colspan="2">Lens</th></tr>
+        ${field("phy-lens", "Name", p.lensName)}
+        ${field("phy-deg", "Degrees", p.degrees)}
+        <tr><th colspan="2">Weight / Size</th></tr>
+        ${field("phy-kg", "Kg", p.weightKg)}
+        ${field("phy-h", "Height", p.height)}
+        ${field("phy-w", "Width", p.width)}
+        ${field("phy-d", "Depth", p.depth)}
+        <tr><th colspan="2">Focus</th></tr>
+        ${field("phy-ftype", "Type", p.focusType)}
+        ${field("phy-pan", "PanMax", p.panMax)}
+        ${field("phy-tilt", "TiltMax", p.tiltMax)}
+        ${field("phy-pans", "PanMaxSpeed", p.panMaxSpeed)}
+        ${field("phy-tilts", "TiltMaxSpeed", p.tiltMaxSpeed)}
+      </table>
+      <div class="toolbar"><button type="button" id="btn-phy-apply">Apply physical to all modes</button></div>`;
+  }
+
+  function renderMacroEditor() {
+    setHelp("Macros: named sequences of Set Channel / Delay (e.g. Control:2).");
+    const blocks = (state.macros || [])
+      .map((macro, mi) => {
+        const steps = (macro.steps || [])
+          .map(
+            (s, si) => `<div class="channel-row">
+            <input data-mac="${mi}" data-step="${si}" data-sf="channel" value="${esc(s.channel)}" placeholder="Attr:fn" />
+            <input data-mac="${mi}" data-step="${si}" data-sf="delay" value="${esc(s.delay)}" placeholder="Delay ms" />
+            <button type="button" data-step-del="${mi}:${si}">×</button>
+          </div>`
+          )
+          .join("");
+        return `<div class="mode-row">
+          <div class="mode-row-main">
+            <input data-mac-name="${mi}" value="${esc(macro.name)}" />
+            ${steps || `<p class="empty">No steps.</p>`}
+            <button type="button" data-step-add="${mi}">Add step</button>
+          </div>
+          <button type="button" data-mac-del="${mi}">Delete macro</button>
+        </div>`;
+      })
+      .join("");
+    return `${propsTypeHeader("Macros")}
+      <div class="toolbar"><button type="button" id="btn-add-macro">Add macro</button></div>
+      <div class="mode-list">${blocks || `<p class="empty">No macros.</p>`}</div>`;
+  }
+
+  function renderPaletteEditor() {
+    setHelp("Palettes: Group + SetControl (Attr:fn:percent, comma separated).");
+    const blocks = (state.paletteGroups || [])
+      .map((g, gi) => {
+        const rows = (g.palettes || [])
+          .map(
+            (p, pi) => `<tr>
+            <td><input data-pal="${gi}:${pi}" data-pf="name" value="${esc(p.name)}" /></td>
+            <td><input data-pal="${gi}:${pi}" data-pf="legend" value="${esc(p.legend)}" /></td>
+            <td><input data-pal="${gi}:${pi}" data-pf="number" value="${esc(p.number)}" /></td>
+            <td><input data-pal="${gi}:${pi}" data-pf="page" value="${esc(p.page)}" /></td>
+            <td><input data-pal="${gi}:${pi}" data-pf="setControl" value="${esc(p.setControl)}" /></td>
+            <td><button type="button" data-pal-del="${gi}:${pi}">×</button></td>
+          </tr>`
+          )
+          .join("");
+        return `<div class="cell-section">
+          <div class="section-label"><input data-grp-name="${gi}" value="${esc(g.name)}" /></div>
+          <button type="button" data-pal-add="${gi}">Add palette</button>
+          <button type="button" data-grp-del="${gi}">Delete group</button>
+          <table class="dmx-table"><thead><tr><th>Name</th><th>Legend</th><th>Number</th><th>Page</th><th>SetControl</th><th></th></tr></thead>
+          <tbody>${rows}</tbody></table>
+        </div>`;
+      })
+      .join("");
+    return `${propsTypeHeader("Palettes")}
+      <div class="toolbar"><button type="button" id="btn-add-pgroup">Add group</button></div>
+      ${blocks || `<p class="empty">No palettes.</p>`}`;
+  }
+
+  function renderSwatchEditor() {
+    setHelp("Swatch library (PNG base64) and Thumbnail guid, as stored by PB.");
+    const cards = (state.swatches || [])
+      .map((sw) => {
+        const src = sw.data ? `data:image/png;base64,${sw.data}` : "";
+        const on = state.thumbnail === sw.id ? " (thumbnail)" : "";
+        return `<div class="catalog-item" data-swatch-id="${esc(sw.id)}">
+          ${src ? `<img alt="" src="${src}" style="max-width:72px;max-height:72px" />` : `<div class="glyph">IMG</div>`}
+          <div class="label">${esc(sw.id.slice(0, 8))}${esc(on)}</div>
+          <button type="button" data-thumb-pick="${esc(sw.id)}">Use</button>
+        </div>`;
+      })
+      .join("");
+    return `${propsTypeHeader("Swatch")}
+      <div class="toolbar">
+        <button type="button" id="btn-swatch-file">Import image…</button>
+        <input id="swatch-file" type="file" accept="image/png,image/jpeg" class="hidden" />
+      </div>
+      <p class="empty">Thumbnail: ${esc(state.thumbnail || "(none)")}</p>
+      <div class="catalog-grid">${cards || `<p class="empty">No swatches.</p>`}</div>`;
   }
 
   function propsTypeHeader(label) {
@@ -1944,7 +2405,8 @@
           <tr><td class="label">Personality Version</td><td><input id="p-ver" value="${esc(state.personalityVersion)}" /></td></tr>
           <tr><td class="label">Tags</td><td><input id="p-tags" value="${esc(state.tags)}" /></td></tr>
           <tr><th colspan="2">Thumbnail</th></tr>
-          <tr><td class="label">Thumbnail</td><td><span class="empty">(not stored in replica MVP)</span></td></tr>
+          <tr><td class="label">Thumbnail</td><td><input id="p-thumb" value="${esc(state.thumbnail)}" placeholder="swatch guid" /></td></tr>
+          <tr><td class="label">Image</td><td><input id="p-thumb-file" type="file" accept="image/png,image/jpeg" /></td></tr>
           <tr><th colspan="2">Misc</th></tr>
           <tr><td class="label">UpdateVersionOnDirty</td><td>
             <select id="p-dirty"><option value="true" ${state.updateVersionOnDirty ? "selected" : ""}>True</option>
@@ -1952,6 +2414,7 @@
           </td></tr>
           <tr><th colspan="2">References</th></tr>
           <tr><td class="label">AtlaBase Device Information</td><td><input id="p-atla" value="${esc(state.atlaBase)}" /></td></tr>
+          <tr><td class="label">AtlaBase Mode ID</td><td><input id="p-atla-mode" value="${esc(state.atlaModeId)}" /></td></tr>
           <tr><td class="label">RDM Device Information</td><td><input id="p-rdm" value="${esc(state.rdm)}" /></td></tr>
         </table>`;
     }
@@ -1978,16 +2441,31 @@
           <tr><td class="label">Bank</td><td><input id="p-bank" value="${esc(a.bank)}" /></td></tr>
           <tr><td class="label">Page</td><td><input id="p-page" value="${esc(a.page)}" /></td></tr>
           <tr><td class="label">Wheel</td><td><input id="p-wheel" value="${esc(a.wheel)}" /></td></tr>
-          ${
-            a.hasConditions || (a.conditions && a.conditions.length)
-              ? `<tr><th colspan="2">Conditions (read-only)</th></tr>
-          <tr><td class="label">Links</td><td><pre class="cond-read">${esc(
-            (a.conditions || [])
-              .map((c) => `${c.ifExpr || "(Else)"}${c.functionIds?.length ? ` → fn ${c.functionIds.join(",")}` : ""}`)
-              .join("\n") || "(present)"
-          )}</pre></td></tr>`
-              : ""
-          }
+          <tr><th colspan="2">Conditions</th></tr>
+          <tr><td colspan="2">
+            <p class="empty">PB: Condition ID lists function numbers. If uses the func attribute, e.g. 'Colour1Func'==1. Else holds the fallback function IDs.</p>
+            <table class="dmx-table" id="cond-table">
+              <thead><tr><th>Name</th><th>If</th><th>Function IDs</th><th></th></tr></thead>
+              <tbody>
+              ${(a.conditions || [])
+                .map(
+                  (c, i) => `<tr>
+                <td><input data-cond-i="${i}" data-cf="name" value="${esc(c.elseBranch ? "Else" : c.name)}" ${c.elseBranch ? "readonly" : ""} /></td>
+                <td><input data-cond-i="${i}" data-cf="ifExpr" value="${esc(c.ifExpr || "")}" ${c.elseBranch ? "readonly" : ""} /></td>
+                <td><input data-cond-i="${i}" data-cf="functionIds" value="${esc(
+                  Array.isArray(c.functionIds) ? c.functionIds.join(",") : c.functionIds || ""
+                )}" /></td>
+                <td><button type="button" data-cond-del="${i}">×</button></td>
+              </tr>`
+                )
+                .join("")}
+              </tbody>
+            </table>
+            <div class="toolbar">
+              <button type="button" id="btn-add-cond">Add Condition</button>
+              <button type="button" id="btn-add-else">Add Else</button>
+            </div>
+          </td></tr>
         </table>`;
     }
     if (selection.kind === "mode") {
@@ -2045,8 +2523,14 @@
           ${rows}
         </div>`;
     }
+    if (selection.kind === "history") return renderHistoryEditor();
+    if (selection.kind === "manual") return renderManualEditor();
+    if (selection.kind === "physical") return renderPhysicalEditor();
+    if (selection.kind === "macros" || selection.kind === "macro") return renderMacroEditor();
+    if (selection.kind === "palettes" || selection.kind === "palette") return renderPaletteEditor();
+    if (selection.kind === "swatch") return renderSwatchEditor();
     setHelp("");
-    return `<p class="empty">Nodo pendiente en la réplica MVP.</p>`;
+    return `<p class="empty">Select a node in the fixture tree.</p>`;
   }
 
   function renderDmxTab() {
@@ -2201,7 +2685,9 @@
       const tags = document.getElementById("p-tags");
       const dirtySel = document.getElementById("p-dirty");
       const atla = document.getElementById("p-atla");
+      const atlaMode = document.getElementById("p-atla-mode");
       const rdm = document.getElementById("p-rdm");
+      const thumb = document.getElementById("p-thumb");
       if (man) state.manufacturer = man.value;
       if (name) state.name = name.value;
       if (short) state.shortName = short.value.slice(0, 10);
@@ -2209,12 +2695,14 @@
       if (tags) state.tags = tags.value;
       if (dirtySel) state.updateVersionOnDirty = dirtySel.value === "true";
       if (atla) state.atlaBase = atla.value;
+      if (atlaMode) state.atlaModeId = atlaMode.value;
       if (rdm) state.rdm = rdm.value;
+      if (thumb) state.thumbnail = thumb.value;
       markDirty();
       renderTree();
       updateTitle();
     };
-    ["p-man", "p-name", "p-short", "p-ver", "p-tags", "p-dirty", "p-atla", "p-rdm"].forEach((id) => {
+    ["p-man", "p-name", "p-short", "p-ver", "p-tags", "p-dirty", "p-atla", "p-atla-mode", "p-rdm", "p-thumb"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener("input", syncFixture);
@@ -2347,6 +2835,267 @@
     });
 
     bindCellsHandlers();
+    bindFullEditors();
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const res = String(reader.result || "");
+        const i = res.indexOf(",");
+        resolve(i >= 0 ? res.slice(i + 1) : res);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function bindFullEditors() {
+    document.getElementById("p-thumb-file")?.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const data = await fileToBase64(file);
+      const id = newGuid();
+      state.swatches.push({ id, data });
+      state.thumbnail = id;
+      markDirty();
+      render();
+    });
+
+    document.querySelectorAll("[data-hist-i]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const h = state.history[Number(input.dataset.histI)];
+        if (!h) return;
+        h[input.dataset.hf] = input.value;
+        markDirty();
+      });
+    });
+    document.getElementById("btn-add-hist")?.addEventListener("click", () => {
+      state.history.push({ date: pbDate(), author: "", comment: "", version: state.personalityVersion || "" });
+      markDirty();
+      render();
+    });
+    document.querySelectorAll("[data-hist-del]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.history.splice(Number(btn.dataset.histDel), 1);
+        markDirty();
+        render();
+      });
+    });
+
+    const syncManual = () => {
+      state.manual = {
+        filename: document.getElementById("p-man-file")?.value || "",
+        summary: document.getElementById("p-man-sum")?.value || "",
+      };
+      markDirty();
+    };
+    document.getElementById("p-man-file")?.addEventListener("change", syncManual);
+    document.getElementById("p-man-sum")?.addEventListener("change", syncManual);
+
+    const phyMap = {
+      "phy-bulb": "bulbType",
+      "phy-lumens": "lumens",
+      "phy-ct": "colourTemp",
+      "phy-lens": "lensName",
+      "phy-deg": "degrees",
+      "phy-kg": "weightKg",
+      "phy-h": "height",
+      "phy-w": "width",
+      "phy-d": "depth",
+      "phy-ftype": "focusType",
+      "phy-pan": "panMax",
+      "phy-tilt": "tiltMax",
+      "phy-pans": "panMaxSpeed",
+      "phy-tilts": "tiltMaxSpeed",
+    };
+    for (const [id, key] of Object.entries(phyMap)) {
+      document.getElementById(id)?.addEventListener("change", (e) => {
+        state.physical[key] = e.target.value;
+        markDirty();
+      });
+    }
+    document.getElementById("btn-phy-apply")?.addEventListener("click", () => {
+      for (const mode of state.modes) mode.physical = { ...state.physical };
+      markDirty();
+      setStatus("Physical copied onto every mode.");
+    });
+
+    document.querySelectorAll("[data-mac-name]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const m = state.macros[Number(input.dataset.macName)];
+        if (m) m.name = input.value;
+        markDirty();
+      });
+    });
+    document.querySelectorAll("[data-mac]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const step = state.macros[Number(input.dataset.mac)]?.steps?.[Number(input.dataset.step)];
+        if (step) step[input.dataset.sf] = input.value;
+        markDirty();
+      });
+    });
+    document.getElementById("btn-add-macro")?.addEventListener("click", () => {
+      state.macros.push({ name: "Reset", steps: [{ channel: "Control:1", delay: "0" }] });
+      markDirty();
+      render();
+    });
+    document.querySelectorAll("[data-mac-del]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.macros.splice(Number(btn.dataset.macDel), 1);
+        markDirty();
+        render();
+      });
+    });
+    document.querySelectorAll("[data-step-add]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.macros[Number(btn.dataset.stepAdd)]?.steps.push({ channel: "", delay: "0" });
+        markDirty();
+        render();
+      });
+    });
+    document.querySelectorAll("[data-step-del]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const [mi, si] = btn.dataset.stepDel.split(":").map(Number);
+        state.macros[mi]?.steps.splice(si, 1);
+        markDirty();
+        render();
+      });
+    });
+
+    document.getElementById("btn-add-pgroup")?.addEventListener("click", () => {
+      state.paletteGroups.push({
+        name: "Colour",
+        palettes: [{ id: "1", name: "Open", legend: "", number: "1", page: "1", setControl: "" }],
+      });
+      markDirty();
+      render();
+    });
+    document.querySelectorAll("[data-grp-name]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const g = state.paletteGroups[Number(input.dataset.grpName)];
+        if (g) g.name = input.value;
+        markDirty();
+      });
+    });
+    document.querySelectorAll("[data-grp-del]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.paletteGroups.splice(Number(btn.dataset.grpDel), 1);
+        markDirty();
+        render();
+      });
+    });
+    document.querySelectorAll("[data-pal-add]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const g = state.paletteGroups[Number(btn.dataset.palAdd)];
+        if (!g) return;
+        g.palettes.push({
+          id: String(g.palettes.length + 1),
+          name: "New",
+          legend: "",
+          number: "0",
+          page: "1",
+          setControl: "",
+        });
+        markDirty();
+        render();
+      });
+    });
+    document.querySelectorAll("[data-pal]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const [gi, pi] = input.dataset.pal.split(":").map(Number);
+        const pal = state.paletteGroups[gi]?.palettes?.[pi];
+        if (pal) pal[input.dataset.pf] = input.value;
+        markDirty();
+      });
+    });
+    document.querySelectorAll("[data-pal-del]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const [gi, pi] = btn.dataset.palDel.split(":").map(Number);
+        state.paletteGroups[gi]?.palettes.splice(pi, 1);
+        markDirty();
+        render();
+      });
+    });
+
+    document.getElementById("btn-swatch-file")?.addEventListener("click", () => document.getElementById("swatch-file")?.click());
+    document.getElementById("swatch-file")?.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const data = await fileToBase64(file);
+      const id = newGuid();
+      state.swatches.push({ id, data });
+      if (!state.thumbnail) state.thumbnail = id;
+      markDirty();
+      render();
+    });
+    document.querySelectorAll("[data-thumb-pick]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.thumbnail = btn.dataset.thumbPick;
+        markDirty();
+        render();
+      });
+    });
+
+    document.querySelectorAll("[data-cond-i]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const attr = findAttr(selection.id);
+        const cond = attr?.conditions?.[Number(input.dataset.condI)];
+        if (!cond) return;
+        cond[input.dataset.cf] = input.value;
+        if (input.dataset.cf === "functionIds") cond.functionIds = input.value;
+        attr.hasConditions = attr.conditions.length > 0;
+        markDirty();
+      });
+    });
+    document.getElementById("btn-add-cond")?.addEventListener("click", () => {
+      const attr = findAttr(selection.id);
+      if (!attr) return;
+      if (!attr.conditions) attr.conditions = [];
+      attr.conditions.push({ elseBranch: false, name: "Fixed", functionIds: "", ifExpr: "'Colour1Func'==1" });
+      attr.hasConditions = true;
+      markDirty();
+      render();
+    });
+    document.getElementById("btn-add-else")?.addEventListener("click", () => {
+      const attr = findAttr(selection.id);
+      if (!attr) return;
+      if (!attr.conditions) attr.conditions = [];
+      if (attr.conditions.some((c) => c.elseBranch)) {
+        setStatus("Else already exists on this attribute.");
+        return;
+      }
+      attr.conditions.push({ elseBranch: true, name: "Else", functionIds: "", ifExpr: "" });
+      attr.hasConditions = true;
+      markDirty();
+      render();
+    });
+    document.querySelectorAll("[data-cond-del]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const attr = findAttr(selection.id);
+        attr?.conditions?.splice(Number(btn.dataset.condDel), 1);
+        if (attr) attr.hasConditions = !!attr.conditions?.length;
+        markDirty();
+        render();
+      });
+    });
+
+    document.getElementById("cell-links")?.addEventListener("change", (e) => {
+      const mode = selection.kind === "mode" ? findMode(selection.name) : null;
+      if (!mode?.cells) return;
+      const links = String(e.target.value || "")
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+          const [sourceId, targetId] = line.split(",").map((s) => s.trim());
+          return { sourceId, targetId: targetId || sourceId };
+        })
+        .filter((l) => l.sourceId);
+      for (const cell of mode.cells.cells || []) cell.links = links.map((l) => ({ ...l }));
+      markDirty();
+    });
   }
 
   function readSeqControlsIntoUi() {
@@ -2593,6 +3342,7 @@
       }
     }
     updateStatusCounts();
+    lastSnap = JSON.stringify(state);
   }
 
   function onTreeClick(e) {
@@ -2608,9 +3358,27 @@
       selection = { kind: "modes" };
       catalogTab = "modes";
       propsTab = "properties";
-    } else if (kind === "mode") selection = { kind: "mode", name: node.dataset.name };
-    else {
-      setStatus(`${kind}: pendiente en MVP (existe en PB 3.4.1).`);
+    }     else if (kind === "mode") selection = { kind: "mode", name: node.dataset.name };
+    else if (kind === "history") {
+      selection = { kind: "history" };
+      catalogTab = "history";
+      propsTab = "properties";
+    } else if (kind === "manual") {
+      selection = { kind: "manual" };
+      propsTab = "properties";
+    } else if (kind === "physical") {
+      selection = { kind: "physical" };
+      propsTab = "properties";
+    } else if (kind === "macros") {
+      selection = { kind: "macros" };
+      catalogTab = "macros";
+      propsTab = "properties";
+    } else if (kind === "palettes") {
+      selection = { kind: "palettes" };
+      catalogTab = "palettes";
+      propsTab = "properties";
+    } else {
+      setStatus(`${kind}: not in this personality.`);
       return;
     }
     if (kind === "attribute" || kind === "mode-attr") propsTab = "properties";
@@ -2675,6 +3443,13 @@
       case "saveas":
         exportD4();
         break;
+      case "close":
+        newFixture();
+        setStatus("Closed.");
+        break;
+      case "r20":
+        exportR20Sheet();
+        break;
       case "import-table":
         openModal("modal-import-table");
         break;
@@ -2690,6 +3465,56 @@
         else setStatus("Select a Mode first (Edit → Duplicate Mode).");
         break;
       }
+      case "undo":
+        undoChange();
+        break;
+      case "redo":
+        redoChange();
+        break;
+      case "add-cond": {
+        if (selection.kind !== "attribute") {
+          setStatus("Select an attribute, then Edit → Add Condition.");
+          break;
+        }
+        const attr = findAttr(selection.id);
+        if (!attr) break;
+        if (!attr.conditions) attr.conditions = [];
+        attr.conditions.push({ elseBranch: false, name: "Fixed", functionIds: "", ifExpr: "'Colour1Func'==1" });
+        attr.hasConditions = true;
+        propsTab = "properties";
+        markDirty();
+        render();
+        break;
+      }
+      case "view-history":
+        selection = { kind: "history" };
+        catalogTab = "history";
+        propsTab = "properties";
+        render();
+        break;
+      case "view-macros":
+        selection = { kind: "macros" };
+        catalogTab = "macros";
+        propsTab = "properties";
+        render();
+        break;
+      case "view-palettes":
+        selection = { kind: "palettes" };
+        catalogTab = "palettes";
+        propsTab = "properties";
+        render();
+        break;
+      case "view-swatch":
+        selection = { kind: "swatch" };
+        catalogTab = "swatch";
+        propsTab = "properties";
+        render();
+        break;
+      case "view-physical":
+        selection = { kind: "physical" };
+        propsTab = "properties";
+        render();
+        break;
       case "view-attributes":
         catalogTab = "attributes";
         renderCatalog();
@@ -2866,6 +3691,14 @@
       if (e.key.toLowerCase() === "n") {
         e.preventDefault();
         newFixture();
+      }
+      if (e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undoChange();
+      }
+      if (e.key.toLowerCase() === "y" || (e.key.toLowerCase() === "z" && e.shiftKey)) {
+        e.preventDefault();
+        redoChange();
       }
       if (e.key.toLowerCase() === "o") {
         e.preventDefault();
