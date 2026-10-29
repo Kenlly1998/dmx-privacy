@@ -1073,22 +1073,25 @@ button, input, select, textarea {
 }
 
 .catalog-grid.pb-icons {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 1px 8px;
-  padding: 6px 8px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0;
+  padding: 2px 4px 8px;
 }
 
 .catalog-grid.pb-icons .catalog-item,
 .pb-item {
   position: relative;
-  min-height: 20px;
+  width: 136px;
+  flex: 0 0 136px;
+  min-height: 22px;
   height: auto;
   flex-direction: row;
   justify-content: flex-start;
   align-items: center;
   gap: 4px;
-  padding: 1px 2px;
+  padding: 1px 4px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -1254,6 +1257,7 @@ button, input, select, textarea {
 .ico-mode { background: linear-gradient(#f0c040, #f0c040) 0 4px / 14px 10px no-repeat, linear-gradient(#e0a020, #e0a020) 0 2px / 8px 3px no-repeat; }
 .ico-macro { background: #6a3dff; clip-path: polygon(20% 0, 80% 0, 80% 20%, 55% 20%, 55% 100%, 45% 100%, 45% 20%, 20% 20%); }
 .ico-palette { background: conic-gradient(#e10600, #ffe14a, #00a651, #1a5cff, #e10600); border-radius: 50%; }
+.ico-cond { background: #f0c040; clip-path: polygon(0 0, 100% 0, 100% 70%, 70% 100%, 0 100%); }
 .pb-ico.fn {
   width: 14px;
   height: 14px;

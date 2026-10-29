@@ -1148,20 +1148,30 @@
   }
 
   function addFunctionToSelected(fn) {
-    const attrId = selection.kind === "attribute" || selection.kind === "function" ? selection.id : "";
+    const attrId =
+      selection.kind === "attribute" || selection.kind === "function" || selection.kind === "condition" ? selection.id : "";
     const attr = findAttr(attrId);
     if (!attr) {
-      setStatus("Selecciona un atributo. Personality Builder cuelga la función debajo de ese atributo.");
+      setStatus("Selecciona un atributo. La función queda debajo de ese atributo.");
       return;
     }
     const index = attr.functions.length;
+    const id = String(index + 1);
     attr.functions.push({
-      id: String(index + 1),
+      id,
       name: fn.name,
       dmx: fn.dmx,
       display: fn.display,
       colour: fn.colour || "",
     });
+    if (selection.kind === "condition") {
+      const cond = attr.conditions?.[Number(selection.index)];
+      if (cond) {
+        const ids = conditionIdList(cond);
+        ids.push(id);
+        cond.functionIds = ids.join(",");
+      }
+    }
     selection = { kind: "function", id: attr.id, index };
     showFunctionsFor(attr);
     propsTab = "dmx";
@@ -2060,19 +2070,53 @@
     scheduleLint();
   }
 
+  function functionTreeNode(attr, fn, i) {
+    const fsel = selection.kind === "function" && selection.id === attr.id && Number(selection.index) === i ? "selected" : "";
+    return `<li><div class="node ${fsel}" data-kind="function" data-id="${esc(attr.id)}" data-index="${i}"><span class="twist"></span><span class="pb-ico fn"></span><span>${esc(
+      fn.name
+    )}</span></div></li>`;
+  }
+
+  function conditionIdList(cond) {
+    return String(cond?.functionIds || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  function attributeTreeChildren(attr) {
+    const fns = attr.functions || [];
+    if (!attr.conditions?.length) return fns.map((fn, i) => functionTreeNode(attr, fn, i)).join("");
+    const placed = new Set();
+    const parts = [];
+    attr.conditions.forEach((cond, ci) => {
+      const ids = new Set(conditionIdList(cond));
+      const kids = [];
+      fns.forEach((fn, i) => {
+        if (!ids.has(String(fn.id))) return;
+        placed.add(i);
+        kids.push(functionTreeNode(attr, fn, i));
+      });
+      const label = cond.elseBranch ? "Else" : cond.name || "Condition";
+      const csel = selection.kind === "condition" && selection.id === attr.id && Number(selection.index) === ci ? "selected" : "";
+      parts.push(
+        `<li><div class="node ${csel}" data-kind="condition" data-id="${esc(attr.id)}" data-index="${ci}"><span class="twist">▾</span><span class="node-ico ico-cond"></span><span>${esc(
+          label
+        )}</span></div><ul>${kids.join("")}</ul></li>`
+      );
+    });
+    fns.forEach((fn, i) => {
+      if (!placed.has(i)) parts.push(functionTreeNode(attr, fn, i));
+    });
+    return parts.join("");
+  }
+
   function renderTree() {
     const root = document.getElementById("tree");
     const attrNodes = state.attributes
       .map((a) => {
         const sel = selection.kind === "attribute" && selection.id === a.id ? "selected" : "";
-        const kids = (a.functions || [])
-          .map((fn, i) => {
-            const fsel = selection.kind === "function" && selection.id === a.id && Number(selection.index) === i ? "selected" : "";
-            return `<li><div class="node ${fsel}" data-kind="function" data-id="${esc(a.id)}" data-index="${i}"><span class="twist"></span><span class="pb-ico fn"></span><span>${esc(
-              fn.name
-            )}</span></div></li>`;
-          })
-          .join("");
+        const kids = attributeTreeChildren(a);
         return `<li><div class="node ${sel}" data-kind="attribute" data-id="${esc(a.id)}"><span class="twist">${
           kids ? "▾" : ""
         }</span>${pbIcon(a.name)}<span>${esc(a.name)}</span></div><ul>${kids}</ul></li>`;
@@ -2672,11 +2716,13 @@
         <button type="button" id="btn-add-fn">${esc(t("dmx.addFn"))}</button>
         <button type="button" id="btn-del-fn">${esc(t("dmx.delFn"))}</button>
       </div>
-      <div class="seq-panel" id="seq-panel">
-        <div class="seq-head">
-          <strong>${esc(t("seq.title"))}</strong>
-          <p class="seq-hint">${esc(t("seq.hint"))}</p>
-        </div>
+      <table class="dmx-table">
+        <thead><tr><th class="col-sel"></th><th>${esc(t("dmx.col.name"))}</th><th>${esc(t("dmx.col.start"))}</th><th>${esc(t("dmx.col.end"))}</th><th>${esc(t("dmx.col.display"))}</th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="5" class="empty">${esc(t("dmx.empty"))}</td></tr>`}</tbody>
+      </table>
+      <details class="seq-panel" id="seq-panel">
+        <summary>${esc(t("seq.title"))}</summary>
+        <p class="seq-hint">${esc(t("seq.hint"))}</p>
         <div class="seq-controls">
           <label>${esc(t("seq.start"))}<input id="seq-start" type="number" min="0" value="${seqUi.start}" /></label>
           <label>${esc(t("seq.step"))}<input id="seq-step" type="number" min="1" value="${seqUi.step}" /></label>
@@ -2698,11 +2744,7 @@
         </div>
         <div class="seq-fn-list">${fnChecks || `<span class="empty">${esc(t("dmx.empty"))}</span>`}</div>
         <div class="seq-preview" id="seq-preview" aria-live="polite"></div>
-      </div>
-      <table class="dmx-table">
-        <thead><tr><th class="col-sel"></th><th>${esc(t("dmx.col.name"))}</th><th>${esc(t("dmx.col.start"))}</th><th>${esc(t("dmx.col.end"))}</th><th>${esc(t("dmx.col.display"))}</th></tr></thead>
-        <tbody>${rows || `<tr><td colspan="5" class="empty">${esc(t("dmx.empty"))}</td></tr>`}</tbody>
-      </table>`;
+      </details>`;
   }
 
   function renderChannelsTab() {
@@ -2712,7 +2754,7 @@
     setHelp("Channels: ChannelOffset and wheel assignment per attribute in this mode.");
     const bar = modeActionsBar(m.name);
     if (!m.includes.length) {
-      return `${bar}<p class="empty">Pulsa + en Created Attributes con este modo seleccionado.</p>`;
+      return `${bar}<p class="empty">Double-click a created attribute to include it in this mode.</p>`;
     }
     const rows = m.includes
       .map(
@@ -3466,6 +3508,10 @@
       selection = { kind: "function", id: node.dataset.id, index: Number(node.dataset.index) };
       showFunctionsFor(findAttr(node.dataset.id));
       propsTab = "dmx";
+    } else if (kind === "condition") {
+      selection = { kind: "condition", id: node.dataset.id, index: Number(node.dataset.index) };
+      showFunctionsFor(findAttr(node.dataset.id));
+      propsTab = "properties";
     } else if (kind === "modes") {
       selection = { kind: "modes" };
       catalogTab = "modes";
@@ -3881,6 +3927,9 @@
   }
 
   async function boot() {
+    if (Array.isArray(window.PB_FUNCTIONS) && window.PB_FUNCTIONS.length) {
+      FUNC_CATALOG.splice(0, FUNC_CATALOG.length, ...window.PB_FUNCTIONS);
+    }
     refreshI18nDom();
     fillSettingsLangSelect();
     let loaded = false;
