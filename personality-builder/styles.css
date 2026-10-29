@@ -298,6 +298,36 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .tree .icon { width: 14px; text-align: center; opacity: .8; }
 
 /* Catalog */
+.func-group-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 10px 4px;
+  border-bottom: 1px solid var(--stroke);
+}
+
+.func-group-btn {
+  border: 1px solid var(--stroke);
+  background: transparent;
+  color: var(--muted, #9aa3b2);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.func-group-btn:hover {
+  border-color: var(--accent);
+  color: var(--text, #eee);
+}
+
+.func-group-btn.active {
+  border-color: var(--accent);
+  background: rgba(240, 162, 2, 0.15);
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .catalog-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));

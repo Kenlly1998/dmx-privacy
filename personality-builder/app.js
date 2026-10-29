@@ -11,22 +11,85 @@
     { id: "S", label: "Special" },
   ];
 
-  const FUNC_CATALOG = [
-    { name: "Dimmer", dmx: "0~255", display: "'%.1f%%',0.0~100.0" },
-    { name: "Closed", dmx: "0~9", display: "Closed" },
-    { name: "Open", dmx: "10~19", display: "Open" },
-    { name: "Strobe", dmx: "20~255", display: "'Strobe %.f',0~100" },
-    { name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255" },
-    { name: "Pan", dmx: "0~65535", display: "'%.1f%%',0.0~100.0" },
-    { name: "Tilt", dmx: "0~65535", display: "'%.1f%%',0.0~100.0" },
-    { name: "Red C-Mix", dmx: "0~255", display: "'%.1f%%',0.0~100.0", colour: "255,0,0" },
-    { name: "Green C-Mix", dmx: "0~255", display: "'%.1f%%',0.0~100.0", colour: "0,255,0" },
-    { name: "Blue C-Mix", dmx: "0~255", display: "'%.1f%%',0.0~100.0", colour: "0,0,255" },
-    { name: "Open White", dmx: "0~15", display: "Open" },
-    { name: "Index", dmx: "0~127", display: "'Index %.f',0~100" },
-    { name: "Rotate CW", dmx: "128~191", display: "'CW %.f',0~100" },
-    { name: "Rotate CCW", dmx: "192~255", display: "'CCW %.f',0~100" },
+  /** Official-style PB function templates (Intensity tab + other groups). */
+  const FUNC_GROUPS = [
+    { id: "I", label: "Intensity" },
+    { id: "P", label: "Pan/Tilt" },
+    { id: "C", label: "Colour" },
+    { id: "G", label: "Gobo" },
+    { id: "B", label: "Beam" },
+    { id: "E", label: "Effect" },
+    { id: "S", label: "Special" },
   ];
+
+  const FUNC_CATALOG = [
+    // Intensity — matches PB 3.4.1 Functions pane
+    { group: "I", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255", glyph: "ƒ" },
+    { group: "I", name: "Raw DMX 16bit", dmx: "0~65535", display: "'Raw DMX %.f',0~65535", glyph: "ƒ" },
+    { group: "I", name: "8bit Dimmer", dmx: "0~255", display: "'%.1f%%',0.0~100.0", glyph: "ƒ" },
+    { group: "I", name: "16bit Dimmer", dmx: "0~65535", display: "'%.1f%%',0.0~100.0", glyph: "ƒ" },
+    { group: "I", name: "Open", dmx: "0~0", display: "Open", glyph: "ƒ" },
+    { group: "I", name: "Closed", dmx: "0~0", display: "Closed", glyph: "ƒ" },
+    { group: "I", name: "Strobe Hz Range", dmx: "0~255", display: "'Strobe %.1fHz',0.0~25.0", glyph: "ƒ" },
+    { group: "I", name: "Strobe % Range", dmx: "0~255", display: "'Strobe %.1f%%',0.0~100.0", glyph: "ƒ" },
+    { group: "I", name: "Pulse Range", dmx: "0~255", display: "'Pulse %.f%%',0~100", glyph: "ƒ" },
+    { group: "I", name: "Open Pulse Range", dmx: "0~255", display: "'Open Pulse %.f%%',0~100", glyph: "ƒ" },
+    { group: "I", name: "Close Pulse Range", dmx: "0~255", display: "'Close Pulse %.f%%',100~0", glyph: "ƒ" },
+    { group: "I", name: "Random Strobe Range", dmx: "0~255", display: "'Random Strobe %.f%%',0~100", glyph: "ƒ" },
+    { group: "I", name: "Generic Percentage Range", dmx: "0~255", display: "'%.1f%%',0.0~100.0", glyph: "ƒ" },
+    // Pan/Tilt
+    { group: "P", name: "Pan", dmx: "0~65535", display: "'%.1f%%',0.0~100.0", glyph: "ƒ" },
+    { group: "P", name: "Tilt", dmx: "0~65535", display: "'%.1f%%',0.0~100.0", glyph: "ƒ" },
+    { group: "P", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255", glyph: "ƒ" },
+    { group: "P", name: "Raw DMX 16bit", dmx: "0~65535", display: "'Raw DMX %.f',0~65535", glyph: "ƒ" },
+    { group: "P", name: "Generic Percentage Range", dmx: "0~255", display: "'%.1f%%',0.0~100.0", glyph: "ƒ" },
+    // Colour — wheel swatches + C-Mix (PB colour presets)
+    { group: "C", name: "Open", dmx: "0~0", display: "Open", colour: "255,255,255", glyph: "ƒ" },
+    { group: "C", name: "Red", dmx: "0~0", display: "Red", colour: "255,0,0", glyph: "ƒ" },
+    { group: "C", name: "Green", dmx: "0~0", display: "Green", colour: "0,255,0", glyph: "ƒ" },
+    { group: "C", name: "Blue", dmx: "0~0", display: "Blue", colour: "0,0,255", glyph: "ƒ" },
+    { group: "C", name: "Yellow", dmx: "0~0", display: "Yellow", colour: "255,255,0", glyph: "ƒ" },
+    { group: "C", name: "Cyan", dmx: "0~0", display: "Cyan", colour: "0,255,255", glyph: "ƒ" },
+    { group: "C", name: "Magenta", dmx: "0~0", display: "Magenta", colour: "255,0,255", glyph: "ƒ" },
+    { group: "C", name: "Warm White", dmx: "0~0", display: "Warm White", colour: "255,240,200", glyph: "ƒ" },
+    { group: "C", name: "Red C-Mix", dmx: "0~255", display: "'%.1f%%',0.0~100.0", colour: "255,0,0", glyph: "ƒ" },
+    { group: "C", name: "Green C-Mix", dmx: "0~255", display: "'%.1f%%',0.0~100.0", colour: "0,255,0", glyph: "ƒ" },
+    { group: "C", name: "Blue C-Mix", dmx: "0~255", display: "'%.1f%%',0.0~100.0", colour: "0,0,255", glyph: "ƒ" },
+    { group: "C", name: "White C-Mix", dmx: "0~255", display: "'%.1f%%',0.0~100.0", colour: "255,255,255", glyph: "ƒ" },
+    { group: "C", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255", glyph: "ƒ" },
+    // Gobo
+    { group: "G", name: "Open", dmx: "0~0", display: "Open", glyph: "ƒ" },
+    { group: "G", name: "Index", dmx: "0~127", display: "'Index %.f',0~100", glyph: "ƒ" },
+    { group: "G", name: "Rotate CW", dmx: "128~191", display: "'CW %.f',0~100", glyph: "ƒ" },
+    { group: "G", name: "Rotate CCW", dmx: "192~255", display: "'CCW %.f',0~100", glyph: "ƒ" },
+    { group: "G", name: "Shake", dmx: "0~255", display: "'Shake %.f%%',0~100", glyph: "ƒ" },
+    { group: "G", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255", glyph: "ƒ" },
+    // Beam
+    { group: "B", name: "Open", dmx: "0~0", display: "Open", glyph: "ƒ" },
+    { group: "B", name: "Closed", dmx: "0~0", display: "Closed", glyph: "ƒ" },
+    { group: "B", name: "Generic Percentage Range", dmx: "0~255", display: "'%.1f%%',0.0~100.0", glyph: "ƒ" },
+    { group: "B", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255", glyph: "ƒ" },
+    { group: "B", name: "Raw DMX 16bit", dmx: "0~65535", display: "'Raw DMX %.f',0~65535", glyph: "ƒ" },
+    // Effect
+    { group: "E", name: "Open", dmx: "0~0", display: "Open", glyph: "ƒ" },
+    { group: "E", name: "Index", dmx: "0~127", display: "'Index %.f',0~100", glyph: "ƒ" },
+    { group: "E", name: "Rotate CW", dmx: "128~191", display: "'CW %.f',0~100", glyph: "ƒ" },
+    { group: "E", name: "Rotate CCW", dmx: "192~255", display: "'CCW %.f',0~100", glyph: "ƒ" },
+    { group: "E", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255", glyph: "ƒ" },
+    // Special
+    { group: "S", name: "Raw DMX", dmx: "0~255", display: "'Raw DMX %.f',0~255", glyph: "ƒ" },
+    { group: "S", name: "Generic Percentage Range", dmx: "0~255", display: "'%.1f%%',0.0~100.0", glyph: "ƒ" },
+    { group: "S", name: "Open", dmx: "0~0", display: "Open", glyph: "ƒ" },
+    { group: "S", name: "Closed", dmx: "0~0", display: "Closed", glyph: "ƒ" },
+  ];
+
+  function findFuncPreset(name, group) {
+    if (group) {
+      const hit = FUNC_CATALOG.find((f) => f.group === group && f.name === name);
+      if (hit) return hit;
+    }
+    return FUNC_CATALOG.find((f) => f.name === name) || FUNC_CATALOG[0];
+  }
 
   /** Fallback if catalog.json fails to load */
   let ATTR_CATALOG = [
@@ -183,6 +246,7 @@
   let state = createEmptyFixture();
   let selection = { kind: "fixture" };
   let catalogTab = "attributes";
+  let funcCatalogGroup = "I";
   let propsTab = "properties";
   let statusMsg = "";
   let dirty = false;
@@ -830,19 +894,21 @@
   }
 
   function defaultFunctionFor(attrId) {
-    const presets = {
-      Dimmer: FUNC_CATALOG[0],
-      Shutter: FUNC_CATALOG[1],
-      Pan: FUNC_CATALOG[5],
-      Tilt: FUNC_CATALOG[6],
-      Red: FUNC_CATALOG[7],
-      Green: FUNC_CATALOG[8],
-      Blue: FUNC_CATALOG[9],
+    const byAttr = {
+      Dimmer: () => findFuncPreset("8bit Dimmer", "I"),
+      Shutter: () => findFuncPreset("Closed", "I"),
+      Pan: () => findFuncPreset("Pan", "P"),
+      Tilt: () => findFuncPreset("Tilt", "P"),
+      Red: () => findFuncPreset("Red C-Mix", "C"),
+      Green: () => findFuncPreset("Green C-Mix", "C"),
+      Blue: () => findFuncPreset("Blue C-Mix", "C"),
+      White: () => findFuncPreset("White C-Mix", "C"),
+      Colour1: () => findFuncPreset("Open", "C"),
     };
-    const p = presets[attrId] || FUNC_CATALOG[4];
+    const p = (byAttr[attrId] || (() => findFuncPreset("Raw DMX", "I")))();
     return {
       id: "1",
-      name: p.name,
+      name: p.name === "8bit Dimmer" ? "Dimmer" : p.name,
       dmx: p.dmx,
       display: p.display,
       colour: p.colour,
@@ -1488,14 +1554,29 @@
       ).join("")}</div>
       <p class="empty">${ATTR_CATALOG.length} atributos del catálogo PB. Usa + para añadir.</p>`;
     } else if (catalogTab === "functions") {
-      body.innerHTML = `<div class="catalog-grid">${FUNC_CATALOG.map(
-        (fn, i) => `
-        <div class="catalog-item" draggable="true" data-type="func" data-index="${i}">
-          <div class="glyph">ƒ</div>
+      if (!FUNC_GROUPS.some((g) => g.id === funcCatalogGroup)) funcCatalogGroup = "I";
+      const items = FUNC_CATALOG.map((fn, i) => ({ fn, i })).filter(({ fn }) => fn.group === funcCatalogGroup);
+      const sub = FUNC_GROUPS.map(
+        (g) =>
+          `<button type="button" class="func-group-btn ${g.id === funcCatalogGroup ? "active" : ""}" data-func-group="${g.id}">${esc(
+            g.label
+          )}</button>`
+      ).join("");
+      body.innerHTML = `
+        <div class="func-group-tabs">${sub}</div>
+        <div class="catalog-grid">${items
+          .map(
+            ({ fn, i }) => `
+        <div class="catalog-item" draggable="true" data-type="func" data-index="${i}" title="${esc(fn.display)} · DMX ${esc(fn.dmx)}">
+          <div class="glyph">${esc(fn.glyph || "ƒ")}</div>
           <div class="label">${esc(fn.name)}</div>
           <button type="button" class="add-btn" data-add>+</button>
         </div>`
-      ).join("")}</div>`;
+          )
+          .join("")}</div>
+        <p class="empty">${items.length} presets · grupo ${esc(
+        FUNC_GROUPS.find((g) => g.id === funcCatalogGroup)?.label || funcCatalogGroup
+      )} (PB)</p>`;
     } else if (catalogTab === "created") {
       body.innerHTML = state.attributes.length
         ? `<div class="catalog-grid">${state.attributes
@@ -2294,6 +2375,12 @@
   }
 
   function onCatalogActivate(e) {
+    const groupBtn = e.target.closest("[data-func-group]");
+    if (groupBtn && e.type === "click") {
+      funcCatalogGroup = groupBtn.getAttribute("data-func-group") || "I";
+      renderCatalog();
+      return;
+    }
     const item = e.target.closest(".catalog-item");
     if (!item) return;
     if (e.type === "click" && e.target.closest("[data-add]")) {
