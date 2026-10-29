@@ -10,13 +10,22 @@ No incluye ni redistribuye el binario de Avolites (la descarga requiere cuenta e
 
 ## Abrir
 
-Abre `index.html` en el navegador, o desde esta carpeta:
+### Windows (recomendado)
+
+1. Descarga / clona la carpeta `personality-builder`.
+2. Doble clic en `windows\Start-PersonalityBuilder.bat`.
+3. Se abre el navegador solo (elige puerto libre; **no requiere Python**).
+
+ZIP listo: `dist/PersonalityBuilder-Windows.zip` · instrucciones en `windows/LEEME-WINDOWS.txt`.
+
+### Linux / macOS / terminal
 
 ```bash
+cd personality-builder
 python3 -m http.server 8765
 ```
 
-Luego visita `http://localhost:8765/`.
+Luego visita `http://127.0.0.1:8765/`. Si dice *Address already in use*, el server ya está corriendo: abre la URL, no lances otro.
 
 ## UI
 

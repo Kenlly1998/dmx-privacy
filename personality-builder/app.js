@@ -2703,27 +2703,37 @@
     });
   }
 
+  function applyCatalogData(data, sourceLabel) {
+    if (!data || typeof data !== "object") return false;
+    if (Array.isArray(data.attributes) && data.attributes.length) ATTR_CATALOG = data.attributes;
+    if (Array.isArray(data.modes) && data.modes.length) {
+      MODE_TEMPLATES = [
+        ...data.modes.map((m) => ({ name: m.name, channels: Number(m.channels) || 0 })),
+        { name: "4ch", channels: 4 },
+        { name: "8ch", channels: 8 },
+        { name: "12ch", channels: 12 },
+      ];
+    }
+    setStatus(`${sourceLabel} (${ATTR_CATALOG.length} atributos).`);
+    return true;
+  }
+
   async function boot() {
     refreshI18nDom();
     fillSettingsLangSelect();
-    try {
-      const res = await fetch("catalog.json");
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.attributes) && data.attributes.length) ATTR_CATALOG = data.attributes;
-        if (Array.isArray(data.modes) && data.modes.length) {
-          MODE_TEMPLATES = [
-            ...data.modes.map((m) => ({ name: m.name, channels: Number(m.channels) || 0 })),
-            { name: "4ch", channels: 4 },
-            { name: "8ch", channels: 8 },
-            { name: "12ch", channels: 12 },
-          ];
-        }
-        setStatus(`Catálogo PB cargado (${ATTR_CATALOG.length} atributos).`);
-      }
-    } catch {
-      setStatus("Usando catálogo embebido (catalog.json no disponible).");
+    let loaded = false;
+    if (window.PB_CATALOG) {
+      loaded = applyCatalogData(window.PB_CATALOG, "Catálogo PB cargado");
     }
+    if (!loaded) {
+      try {
+        const res = await fetch("catalog.json");
+        if (res.ok) loaded = applyCatalogData(await res.json(), "Catálogo PB cargado");
+      } catch {
+        /* file:// or offline */
+      }
+    }
+    if (!loaded) setStatus("Usando catálogo embebido mínimo (catalog no disponible).");
     wire();
     render();
     refreshI18nDom();
