@@ -40,14 +40,17 @@ Alternativa clásica: atributos desde la biblioteca → plantilla Modes → Crea
 | `.d4` / `.xml` | Personality Titan nativa |
 | `.gdtf` | Importa `description.xml` → attributes + DMX modes editables (luego **Guardar .d4**) |
 | `.mvr` | Lista GDTF embebidos → eliges uno → mismo flujo |
+| `.json` OFL | [Open Fixture Library](https://open-fixture-library.org/) multi-marca → modes/capabilities → `.d4` |
 
-No exporta GDTF/MVR (solo **Guardar .d4**). `.d4z` es archivo de show Titan, no personality.
+No exporta GDTF/MVR/OFL (solo **Guardar .d4**). `.d4z` es archivo de show Titan, no personality.
 
 ## Muestras
 
 - `samples/Demo_RGBWash.d4` — fixture demo propio
 - `samples/DemoCo_RGB_Wash.gdtf` — GDTF mínimo DemoCo
 - `samples/DemoCo_Show.mvr` — MVR con ese GDTF embebido
+- `samples/OFL_generic_rgb-fader.json` — OFL generic RGB
+- `samples/OFL_chauvet-dj_slimpar-pro-qz12.json` — OFL Chauvet DJ (ejemplo otra marca)
 
 ## Tools
 

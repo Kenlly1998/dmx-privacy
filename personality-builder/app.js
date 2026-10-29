@@ -1564,18 +1564,32 @@
     }
   }
 
+  async function importOflFile(file) {
+    if (!window.PB_IMPORT?.parseOflJson) {
+      setStatus(t("import.oflMissing"));
+      return;
+    }
+    try {
+      const text = await file.text();
+      const next = window.PB_IMPORT.parseOflJson(text, { fileName: file.name });
+      applyImportedFixture(next, "import.okOfl");
+    } catch (err) {
+      setStatus(`${t("import.oflMissing")} ${err.message || err}`);
+    }
+  }
+
   async function importAnyFile(file) {
     if (!file) return;
     const name = String(file.name || "").toLowerCase();
     if (name.endsWith(".gdtf")) return importGdtfFile(file);
     if (name.endsWith(".mvr")) return importMvrFile(file);
     if (name.endsWith(".d4") || name.endsWith(".xml")) return importD4(file);
-    // sniff zip vs xml
+    if (name.endsWith(".json")) return importOflFile(file);
+    // sniff zip vs text
     const buf = await file.arrayBuffer();
     const head = new Uint8Array(buf.slice(0, 4));
     const isZip = head[0] === 0x50 && head[1] === 0x4b;
     if (isZip) {
-      // try GDTF then MVR
       try {
         const next = await window.PB_IMPORT.importGdtfArrayBuffer(buf);
         applyImportedFixture(next, "import.okGdtf");
@@ -1587,6 +1601,12 @@
     }
     try {
       const text = new TextDecoder().decode(buf);
+      const trimmed = text.trim();
+      if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+        const next = window.PB_IMPORT.parseOflJson(text, { fileName: file.name });
+        applyImportedFixture(next, "import.okOfl");
+        return;
+      }
       if (text.includes("<Fixture") || text.includes("<Fixture ")) {
         applyImportedFixture(parseD4Text(text), "import.okD4");
         dirty = false;
