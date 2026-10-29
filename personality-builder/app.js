@@ -913,6 +913,102 @@
     render();
   }
 
+  function uniqueModeName(base) {
+    const copyLabel = t("mode.copySuffix");
+    const escLabel = copyLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const suffixRe = new RegExp(`\\s+${escLabel}(?:\\s+\\d+)?$`, "i");
+    let root = String(base || "Mode").trim() || "Mode";
+    // Strip prior "copia" / "copy N" so duplicating a copy yields "… copia 2", not "… copia copia"
+    root = root.replace(suffixRe, "").trim() || root;
+    let name = `${root} ${copyLabel}`;
+    let n = 2;
+    while (state.modes.some((m) => m.name === name)) {
+      name = `${root} ${copyLabel} ${n++}`;
+    }
+    return name;
+  }
+
+  function cloneModeDeep(mode) {
+    const cellsSrc = mode.cells || createEmptyCells();
+    return {
+      name: uniqueModeName(mode.name),
+      id: newGuid(),
+      channels: Number(mode.channels) || 0,
+      includes: (mode.includes || []).map((inc) => ({
+        id: inc.id,
+        channelOffset: inc.channelOffset || "",
+        wheel: inc.wheel || "",
+        virtualControl: inc.virtualControl || "",
+      })),
+      cells: {
+        rows: cellsSrc.rows,
+        cols: cellsSrc.cols,
+        channelsPerCell: cellsSrc.channelsPerCell,
+        startOffset: cellsSrc.startOffset,
+        order: cellsSrc.order,
+        modeLink: cellsSrc.modeLink || "",
+        masterIds: [...(cellsSrc.masterIds || [])],
+        customOrder: [...(cellsSrc.customOrder || [])],
+        cells: (cellsSrc.cells || []).map((c) => ({
+          id: c.id,
+          name: c.name,
+          x: c.x,
+          y: c.y,
+          channelOffset: c.channelOffset,
+          modeLink: c.modeLink || "",
+          links: (c.links || []).map((l) => ({ sourceId: l.sourceId, targetId: l.targetId })),
+          orderIndex: c.orderIndex,
+        })),
+      },
+    };
+  }
+
+  function duplicateMode(sourceName) {
+    const src = findMode(sourceName);
+    if (!src) {
+      setStatus(t("mode.dupMissing"));
+      return null;
+    }
+    const copy = cloneModeDeep(src);
+    state.modes.push(copy);
+    selection = { kind: "mode", name: copy.name };
+    propsTab = "channels";
+    catalogTab = "modes";
+    markDirty();
+    setStatus(t("mode.dupDone", { from: src.name, to: copy.name }));
+    render();
+    return copy;
+  }
+
+  function modeActionsBar(modeName) {
+    return `<div class="toolbar mode-actions">
+      <button type="button" class="btn accent" id="btn-dup-mode" data-dup-mode="${esc(modeName)}" title="${esc(t("mode.dupHint"))}">${esc(t("mode.duplicate"))}</button>
+      <span class="mode-actions-hint">${esc(t("mode.dupHint"))}</span>
+    </div>`;
+  }
+
+  function bindModeDuplicateHandlers() {
+    document.querySelectorAll("#btn-dup-mode, [data-dup-mode]").forEach((btn) => {
+      if (btn.dataset.dupBound) return;
+      btn.dataset.dupBound = "1";
+      btn.addEventListener("click", () => {
+        const name =
+          btn.getAttribute("data-dup-mode") ||
+          (selection.kind === "mode" ? selection.name : null);
+        if (name) duplicateMode(name);
+      });
+    });
+    document.querySelectorAll("[data-select-mode]").forEach((btn) => {
+      if (btn.dataset.selectBound) return;
+      btn.dataset.selectBound = "1";
+      btn.addEventListener("click", () => {
+        selection = { kind: "mode", name: btn.getAttribute("data-select-mode") };
+        propsTab = "properties";
+        render();
+      });
+    });
+  }
+
   function addAttrToSelectedMode(attrId) {
     if (selection.kind !== "mode") {
       setStatus("Selecciona un Mode para mapear ChannelOffset.");
@@ -1581,12 +1677,16 @@
     if (selection.kind === "mode") {
       const m = findMode(selection.name);
       if (!m) return "";
-      setHelp("Mode: DMX personality mode (channel count and attribute map).");
+      setHelp(t("mode.help"));
+      const cellCount = m.cells?.cells?.length || 0;
       return `
+        ${modeActionsBar(m.name)}
         <table class="prop-grid">
           <tr><th colspan="2">Mode</th></tr>
           <tr><td class="label">Name</td><td><input id="p-mname" value="${esc(m.name)}" /></td></tr>
           <tr><td class="label">Channels</td><td><input id="p-mch" type="number" min="0" value="${m.channels}" /></td></tr>
+          <tr><td class="label">${esc(t("mode.includes"))}</td><td>${m.includes.length}</td></tr>
+          <tr><td class="label">Cells</td><td>${cellCount}</td></tr>
         </table>`;
     }
     if (selection.kind === "attributes") {
@@ -1600,14 +1700,33 @@
       return `<p class="empty">Elige atributos en el catálogo (+).</p>`;
     }
     if (selection.kind === "modes") {
-      setHelp("Create a mode from a template, then map Created Attributes.");
+      setHelp(t("mode.listHelp"));
       if (!state.modes.length) {
         return creationHero({
           title: "Crea tu primer modo",
           body: "Mode-first lee el manual en orden DMX y deja el modo listo con offsets.",
         });
       }
-      return `<p class="empty">Elige una plantilla de Modes (+) o crea desde canales.</p>`;
+      const rows = state.modes
+        .map(
+          (m) => `
+        <div class="mode-row">
+          <div class="mode-row-main">
+            <strong>${esc(m.name)}</strong>
+            <span class="mode-row-meta">${m.channels} ch · ${m.includes.length} includes · ${m.cells?.cells?.length || 0} cells</span>
+          </div>
+          <div class="mode-row-actions">
+            <button type="button" class="btn ghost" data-select-mode="${esc(m.name)}">${esc(t("mode.open"))}</button>
+            <button type="button" class="btn accent" data-dup-mode="${esc(m.name)}" title="${esc(t("mode.dupHint"))}">${esc(t("mode.duplicate"))}</button>
+          </div>
+        </div>`
+        )
+        .join("");
+      return `
+        <div class="mode-list">
+          <p class="empty">${esc(t("mode.listIntro"))}</p>
+          ${rows}
+        </div>`;
     }
     setHelp("");
     return `<p class="empty">Nodo pendiente en la réplica MVP.</p>`;
@@ -1685,7 +1804,10 @@
     const m = findMode(selection.name);
     if (!m) return "";
     setHelp("Channels: ChannelOffset and wheel assignment per attribute in this mode.");
-    if (!m.includes.length) return `<p class="empty">Pulsa + en Created Attributes con este modo seleccionado.</p>`;
+    const bar = modeActionsBar(m.name);
+    if (!m.includes.length) {
+      return `${bar}<p class="empty">Pulsa + en Created Attributes con este modo seleccionado.</p>`;
+    }
     const rows = m.includes
       .map(
         (inc, i) => `
@@ -1697,7 +1819,7 @@
       </div>`
       )
       .join("");
-    return `<div class="channels-list">
+    return `${bar}<div class="channels-list">
       <div class="channel-row" style="font-weight:600;color:var(--muted)"><span> </span><span>Attribute</span><span>Offset</span><span>Wheel</span></div>
       ${rows}
     </div>`;
@@ -1804,7 +1926,13 @@
       document.getElementById("p-mname")?.addEventListener("change", (e) => {
         const mode = findMode(old);
         if (!mode) return;
-        mode.name = e.target.value;
+        const next = String(e.target.value || "").trim() || mode.name;
+        if (next !== mode.name && state.modes.some((m) => m.name === next)) {
+          setStatus(t("mode.nameTaken", { name: next }));
+          e.target.value = mode.name;
+          return;
+        }
+        mode.name = next;
         selection = { kind: "mode", name: mode.name };
         markDirty();
         render();
@@ -1817,6 +1945,8 @@
         }
       });
     }
+
+    bindModeDuplicateHandlers();
 
     document.querySelectorAll("[data-dmx-i]").forEach((input) => {
       input.addEventListener("change", () => {
@@ -2141,6 +2271,7 @@
     else if (kind === "modes") {
       selection = { kind: "modes" };
       catalogTab = "modes";
+      propsTab = "properties";
     } else if (kind === "mode") selection = { kind: "mode", name: node.dataset.name };
     else {
       setStatus(`${kind}: pendiente en MVP (existe en PB 3.4.1).`);
