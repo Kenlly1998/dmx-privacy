@@ -29,7 +29,7 @@
         <button type="button" class="btn ghost" id="btn-run-lint" data-i18n="btn.lint">Linter</button>
         <button type="button" class="btn ghost" id="btn-settings" data-i18n="btn.settings" data-i18n-title="btn.settings">Ajustes</button>
       </div>
-      <input type="file" id="file-import" accept=".d4,.xml,text/xml" class="hidden" />
+      <input type="file" id="file-import" accept=".d4,.xml,.gdtf,.mvr,text/xml,application/zip" class="hidden" />
       <input type="file" id="file-csv" accept=".csv,.tsv,.txt,text/csv,text/plain" class="hidden" />
     </header>
 
@@ -191,7 +191,27 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="modal-mvr-pick" hidden>
+    <div class="modal modal-settings" role="dialog" aria-labelledby="mvr-title">
+      <header class="modal-head">
+        <div>
+          <p class="eyebrow" data-i18n="mvr.eyebrow">MVR</p>
+          <h3 id="mvr-title" data-i18n="mvr.title">Elegir fixture GDTF</h3>
+        </div>
+        <button type="button" class="btn icon" id="mvr-cancel" aria-label="Cerrar" data-i18n-aria="settings.close">×</button>
+      </header>
+      <p class="lede settings-help" data-i18n="mvr.help">Este MVR incluye varios GDTF. Elige cuál convertir a personality .d4.</p>
+      <div id="mvr-list" class="mvr-list"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" id="mvr-cancel-2" data-i18n="mf.cancel">Cancelar</button>
+        <button type="button" class="btn primary" id="mvr-apply" data-i18n="mvr.open">Abrir seleccionado</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="vendor/jszip.min.js"></script>
   <script src="i18n.js"></script>
+  <script src="gdtf-import.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

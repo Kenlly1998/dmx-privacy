@@ -1361,17 +1361,46 @@
     },
   };
 
-  async function importD4(file) {
-    const text = await file.text();
+  function applyImportedFixture(next, statusKey) {
+    // Drop importer-only fields
+    const clean = {
+      manufacturer: next.manufacturer || "",
+      name: next.name || "Fixture 1",
+      shortName: next.shortName || (next.name || "Fixture").slice(0, 10),
+      personalityVersion: next.personalityVersion || "0",
+      tags: next.tags || "",
+      updateVersionOnDirty: next.updateVersionOnDirty !== false,
+      attributes: next.attributes || [],
+      modes: (next.modes || []).map((m) => ({
+        ...m,
+        cells: m.cells || createEmptyCells(),
+      })),
+    };
+    state = clean;
+    selection = { kind: "fixture" };
+    catalogTab = "created";
+    propsTab = "properties";
+    dirty = true;
+    const modes = state.modes.length;
+    setStatus(
+      t(statusKey || "import.okD4", {
+        man: state.manufacturer || "—",
+        name: state.name,
+        modes,
+      })
+    );
+    render();
+    scheduleLint();
+  }
+
+  function parseD4Text(text) {
     const doc = new DOMParser().parseFromString(text, "application/xml");
     if (doc.querySelector("parsererror")) {
-      setStatus("XML inválido.");
-      return;
+      throw new Error("XML inválido.");
     }
     const root = doc.querySelector("Fixture");
     if (!root) {
-      setStatus("No es un .d4 (falta Fixture).");
-      return;
+      throw new Error("No es un .d4 (falta Fixture).");
     }
     const next = createEmptyFixture();
     next.manufacturer = root.getAttribute("Company") || "";
@@ -1456,20 +1485,123 @@
         hidden: String(modeEl.getAttribute("Hidden") || "").toLowerCase() === "true",
       });
     }
-    state = next;
-    selection = { kind: "fixture" };
-    dirty = false;
-    const condAttrs = state.attributes.filter((a) => a.hasConditions).length;
-    const cellModes = state.modes.filter((m) => m.cells?.cells?.length).length;
-    const virt = state.modes.reduce((n, m) => n + m.includes.filter((i) => i.virtualControl).length, 0);
-    setStatus(
-      `Abierto: ${state.manufacturer} / ${state.name}` +
-        (condAttrs || cellModes || virt
-          ? ` · ${cellModes ? `${cellModes} mode(s) con cells` : ""}${condAttrs ? `${cellModes ? ", " : ""}${condAttrs} attr con Condition` : ""}${virt ? `${cellModes || condAttrs ? ", " : ""}${virt} VirtualControl` : ""}`
-          : "")
-    );
-    render();
-    scheduleLint();
+    return next;
+  }
+
+  let mvrPick = { buffer: null, choices: [], selected: "" };
+
+  function openMvrPicker(choices, buffer) {
+    mvrPick = { buffer, choices, selected: choices[0]?.path || "" };
+    const list = document.getElementById("mvr-list");
+    if (list) {
+      list.innerHTML = choices
+        .map(
+          (c, i) => `
+        <label class="mvr-item">
+          <input type="radio" name="mvr-fix" value="${esc(c.path)}" ${i === 0 ? "checked" : ""} />
+          <span>${esc(c.label)}</span>
+        </label>`
+        )
+        .join("");
+      list.querySelectorAll("input[name='mvr-fix']").forEach((input) => {
+        input.addEventListener("change", () => {
+          mvrPick.selected = input.value;
+        });
+      });
+    }
+    openModal("modal-mvr-pick");
+    window.PB_I18N?.applyDom?.(document.getElementById("modal-mvr-pick") || document);
+  }
+
+  async function importD4(file) {
+    try {
+      const text = await file.text();
+      const next = parseD4Text(text);
+      applyImportedFixture(next, "import.okD4");
+      dirty = false;
+    } catch (err) {
+      setStatus(err.message || String(err));
+    }
+  }
+
+  async function importGdtfFile(file) {
+    if (!window.PB_IMPORT?.importGdtfArrayBuffer) {
+      setStatus(t("import.gdtfMissing"));
+      return;
+    }
+    try {
+      const buf = await file.arrayBuffer();
+      const next = await window.PB_IMPORT.importGdtfArrayBuffer(buf);
+      applyImportedFixture(next, "import.okGdtf");
+    } catch (err) {
+      setStatus(`${t("import.gdtfMissing")} ${err.message || err}`);
+    }
+  }
+
+  async function importMvrFile(file) {
+    if (!window.PB_IMPORT?.listMvrGdtfs) {
+      setStatus(t("import.gdtfMissing"));
+      return;
+    }
+    try {
+      const buf = await file.arrayBuffer();
+      const choices = await window.PB_IMPORT.listMvrGdtfs(buf);
+      if (!choices.length) {
+        setStatus(t("mvr.none"));
+        return;
+      }
+      if (choices.length === 1) {
+        const next = await window.PB_IMPORT.importMvrArrayBuffer(buf, choices[0].path);
+        applyImportedFixture(next, "import.okMvr");
+        return;
+      }
+      openMvrPicker(
+        choices.map((c) => ({ path: c.path, label: c.label })),
+        buf
+      );
+    } catch (err) {
+      setStatus(`${t("import.gdtfMissing")} ${err.message || err}`);
+    }
+  }
+
+  async function importAnyFile(file) {
+    if (!file) return;
+    const name = String(file.name || "").toLowerCase();
+    if (name.endsWith(".gdtf")) return importGdtfFile(file);
+    if (name.endsWith(".mvr")) return importMvrFile(file);
+    if (name.endsWith(".d4") || name.endsWith(".xml")) return importD4(file);
+    // sniff zip vs xml
+    const buf = await file.arrayBuffer();
+    const head = new Uint8Array(buf.slice(0, 4));
+    const isZip = head[0] === 0x50 && head[1] === 0x4b;
+    if (isZip) {
+      // try GDTF then MVR
+      try {
+        const next = await window.PB_IMPORT.importGdtfArrayBuffer(buf);
+        applyImportedFixture(next, "import.okGdtf");
+        return;
+      } catch {
+        /* fall through */
+      }
+      return importMvrFile(new File([buf], file.name || "file.mvr"));
+    }
+    try {
+      const text = new TextDecoder().decode(buf);
+      if (text.includes("<Fixture") || text.includes("<Fixture ")) {
+        applyImportedFixture(parseD4Text(text), "import.okD4");
+        dirty = false;
+        return;
+      }
+      if (text.includes("FixtureType") || text.includes("<GDTF")) {
+        const next = await window.PB_IMPORT.importGdtfTextOrBuffer(text);
+        applyImportedFixture(next, "import.okGdtf");
+        return;
+      }
+    } catch (err) {
+      setStatus(err.message || String(err));
+      return;
+    }
+    setStatus(t("import.badType"));
   }
 
   function newFixture() {
@@ -2420,7 +2552,7 @@
     document.getElementById("btn-import").addEventListener("click", () => document.getElementById("file-import").click());
     document.getElementById("file-import").addEventListener("change", (e) => {
       const file = e.target.files?.[0];
-      if (file) importD4(file);
+      if (file) importAnyFile(file);
       e.target.value = "";
     });
 
@@ -2428,6 +2560,26 @@
     document.getElementById("btn-quick-create")?.addEventListener("click", () => openModal("modal-mode-first"));
     document.getElementById("btn-import-table")?.addEventListener("click", () => openModal("modal-import-table"));
     document.getElementById("btn-settings")?.addEventListener("click", () => openModal("modal-settings"));
+
+    const closeMvr = () => {
+      closeModal("modal-mvr-pick");
+      mvrPick = { buffer: null, choices: [], selected: "" };
+    };
+    document.getElementById("mvr-cancel")?.addEventListener("click", closeMvr);
+    document.getElementById("mvr-cancel-2")?.addEventListener("click", closeMvr);
+    document.getElementById("mvr-apply")?.addEventListener("click", async () => {
+      if (!mvrPick.buffer || !mvrPick.selected) {
+        setStatus(t("mvr.none"));
+        return;
+      }
+      try {
+        const next = await window.PB_IMPORT.importMvrArrayBuffer(mvrPick.buffer, mvrPick.selected);
+        closeMvr();
+        applyImportedFixture(next, "import.okMvr");
+      } catch (err) {
+        setStatus(`${t("import.gdtfMissing")} ${err.message || err}`);
+      }
+    });
     document.getElementById("btn-run-lint")?.addEventListener("click", () => {
       const issues = runLinter();
       renderLint(issues);

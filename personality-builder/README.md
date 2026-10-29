@@ -31,9 +31,23 @@ Tema moderno (carbón + ámbar), topbar con acciones visibles, empty states con 
 
 Alternativa clásica: atributos desde la biblioteca → plantilla Modes → Created Attributes.
 
-## Muestra
+## Abrir archivos
 
-`samples/Demo_RGBWash.d4` — fixture demo propio (no es librería Avolites). Usa **Open…** para cargarlo.
+**Abrir** acepta:
+
+| Formato | Resultado |
+| --- | --- |
+| `.d4` / `.xml` | Personality Titan nativa |
+| `.gdtf` | Importa `description.xml` → attributes + DMX modes editables (luego **Guardar .d4**) |
+| `.mvr` | Lista GDTF embebidos → eliges uno → mismo flujo |
+
+No exporta GDTF/MVR (solo **Guardar .d4**). `.d4z` es archivo de show Titan, no personality.
+
+## Muestras
+
+- `samples/Demo_RGBWash.d4` — fixture demo propio
+- `samples/DemoCo_RGB_Wash.gdtf` — GDTF mínimo DemoCo
+- `samples/DemoCo_Show.mvr` — MVR con ese GDTF embebido
 
 ## Tools
 
