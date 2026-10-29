@@ -451,7 +451,8 @@
     },
   };
 
-  let lang = "es";
+  // Default English to match official PB 3.4.1 chrome; Tools → Language for ES/PT/FR.
+  let lang = "en";
   try {
     const saved = localStorage.getItem("pb.lang");
     if (saved && dict[saved]) lang = saved;

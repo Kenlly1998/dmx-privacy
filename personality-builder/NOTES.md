@@ -61,11 +61,13 @@ Fuente pública: [Avolites Personality Library](https://personalities.avolites.c
 
 1. Wizard **Condition** (ColourFunc / GoboFunc) — hoy solo aviso en linter.
 2. Export/import completo de **AttributeLink**, **ModeLink** a modos-celda, **VirtualControl**.
-3. Palettes / Macros / Swatch / AtlaBase.
-4. Locate extendido (`PowerOn`, `Highlight`, `Lowlight`).
+3. Palettes / Macros / Swatch UI (stubs); AtlaBase/RDM campos en Properties.
+4. ~~Locate extendido (`PowerOn`, `Highlight`, `Lowlight`)~~ — pestaña Locate Values + export.
 
-## Réplica
+## Réplica (shell PB 3.4.1)
+
+Prioridad: layout WinForms idéntico (menubar, left tree, catalog-above-props, tabs oficiales, property grid + help bar). Mejoras (import GDTF/MVR/OFL, Mode-first, duplicate mode, range sequencer, i18n) quedan en File/Tools sin alterar el chrome oficial.
 
 `catalog.json` deriva IDs/nombres/grupos/wheels observados (interop). No se redistribuye el MSI ni `Standard.d4t` ni `.d4` oficiales de Avolites.
 
-Capturas en `/opt/cursor/artifacts/screenshots/`.
+Capturas oficiales de referencia: `/opt/cursor/artifacts/screenshots/avolites-pb-*.png`.

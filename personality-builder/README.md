@@ -29,16 +29,17 @@ Luego visita `http://127.0.0.1:8765/`. Si dice *Address already in use*, el serv
 
 ## UI
 
-Tema moderno (carbón + ámbar), topbar con acciones visibles, empty states con CTAs, y modales Mode-first / Import con **vista previa en vivo** y presets (RGB, Spot, Wash).
+Réplica del shell **Personality Builder 3.4.1** (WinForms): menú File/Edit/View/Tools/Help, árbol izquierdo, catálogo arriba a la derecha, Properties abajo (tabs oficiales). Mejoras aditivas en **Tools** / **File → Import** (Mode-first, CSV, GDTF/MVR/OFL, linter, range sequencer, idioma).
 
 ## Flujo recomendado
 
-1. **Crear modo** (o Importar tabla) → pega el patch del manual; la preview muestra offsets.
-2. Ajusta Manufacturer / Name en el Inspector.
-3. Refina **DMX Values**, **Channels**, **Cells** si hace falta.
-4. **Linter** → **Guardar .d4** → copia a `Documents\Titan\Personalities` (PC) o `D:\Personalities` (consola) y reinicia Titan.
+1. **File → New** (o abre un `.d4`).
+2. Tools → **Mode-first from channels…** (o Import channel table) → pega el patch del manual.
+3. Ajusta Manufacturer / Name en Properties (nodo Fixture).
+4. Refina **DMX Values**, **Channels**, **Locate Values**, **Cells**.
+5. Tools → **Run linter** → **File → Save** (`.d4`) → copia a `Documents\Titan\Personalities` (PC) o `D:\Personalities` (consola) y reinicia Titan.
 
-Alternativa clásica: atributos desde la biblioteca → plantilla Modes → Created Attributes.
+Alternativa clásica PB: Attributes catalog (+) → Modes → Created Attributes.
 
 ## Abrir archivos
 

@@ -218,6 +218,23 @@
     return defaultLocateValue(attr);
   }
 
+  function defaultHighlightValue(attr) {
+    const v = String(attr?.highlight || "").trim();
+    if (v) return v;
+    // PB convention: colour mix Highlight=full, Lowlight=off; Dimmer often omit or 100
+    if (COLOR_MIX_IDS.has(attr?.id)) return "1:100";
+    if (attr?.id === "Dimmer") return "1:100";
+    return "";
+  }
+
+  function defaultLowlightValue(attr) {
+    const v = String(attr?.lowlight || "").trim();
+    if (v) return v;
+    if (COLOR_MIX_IDS.has(attr?.id)) return "1:0";
+    if (attr?.id === "Dimmer") return "1:0";
+    return "";
+  }
+
   function physicalXmlBlock(indent) {
     const sp = " ".repeat(indent);
     return [
@@ -277,6 +294,8 @@
       personalityVersion: "0",
       tags: "",
       updateVersionOnDirty: true,
+      atlaBase: "00000000-0000-0000-0000-000000000000",
+      rdm: "ESTA: -1 Model: -1",
       attributes: [],
       modes: [],
     };
@@ -829,7 +848,7 @@
 
   function updateChannelPreview(kind) {
     const isMf = kind === "mf";
-    const text = document.getElementById(isMf ? "mf-channels" : "it-text")?.value || "";
+    const text = document.getElementById(isMf ? "mf-channels" : "it-table")?.value || "";
     const meta = document.getElementById(isMf ? "mf-preview-meta" : "it-preview-meta");
     const table = document.getElementById(isMf ? "mf-preview" : "it-preview");
     const tbody = table?.querySelector("tbody");
@@ -1311,6 +1330,10 @@
     );
     if (fx.tags) lines.push(`  <!-- Tags: ${xmlAttr(fx.tags)} -->`);
     lines.push(`  <Manual Filename="" Summary="" />`);
+    if (fx.atlaBase && fx.atlaBase !== "00000000-0000-0000-0000-000000000000") {
+      lines.push(`  <AtlaBase TypeID="${xmlAttr(fx.atlaBase)}" />`);
+    }
+    if (fx.rdm) lines.push(`  <!-- RDM: ${xmlAttr(fx.rdm)} -->`);
     lines.push(`  <Control>`);
     for (const attr of fx.attributes) {
       const size = attr.resolution === "16-bit" ? ` Size="2"` : "";
@@ -1321,19 +1344,42 @@
       );
       const locate = defaultLocateValue(attr);
       const powerOn = defaultPowerOnValue(attr);
-      lines.push(`      <Locate Locate="${xmlAttr(locate)}" PowerOn="${xmlAttr(powerOn)}" />`);
+      const highlight = defaultHighlightValue(attr);
+      const lowlight = defaultLowlightValue(attr);
+      let locateAttrs = `Locate="${xmlAttr(locate)}" PowerOn="${xmlAttr(powerOn)}"`;
+      if (highlight) locateAttrs += ` Highlight="${xmlAttr(highlight)}"`;
+      if (lowlight) locateAttrs += ` Lowlight="${xmlAttr(lowlight)}"`;
+      lines.push(`      <Locate ${locateAttrs} />`);
       const fns = attr.functions?.length ? attr.functions : [{ name: attr.name || attr.id, dmx: "0~255", display: "" }];
-      fns.forEach((fn, idx) => {
-        const colour = fn.colour ? ` Colour="${xmlAttr(fn.colour)}"` : "";
-        const intensity = attr.id === "Dimmer" ? ` Intensity="0~0"` : "";
-        const display = fn.display || fn.name || "";
-        const dmx = fn.dmx || (attr.resolution === "16-bit" ? "0~65535" : "0~255");
-        lines.push(
-          `      <Function ID="${idx + 1}" Name="${xmlAttr(fn.name || `Function ${idx + 1}`)}" Display="${xmlAttr(
-            display
-          )}" Dmx="${xmlAttr(dmx)}"${colour}${intensity} />`
-        );
-      });
+      // Preserve Condition blocks from imported .d4 (read/round-trip). Full Condition wizard is still Tools-future.
+      if (attr.conditions?.length) {
+        for (const cond of attr.conditions) {
+          const ifAttr = cond.ifExpr ? ` If="${xmlAttr(cond.ifExpr)}"` : "";
+          lines.push(`      <Condition${ifAttr}>`);
+          if (cond.rawInner) {
+            lines.push(
+              ...String(cond.rawInner)
+                .split(/\r?\n/)
+                .map((l) => l.trim())
+                .filter(Boolean)
+                .map((l) => `        ${l}`)
+            );
+          }
+          lines.push(`      </Condition>`);
+        }
+      } else {
+        fns.forEach((fn, idx) => {
+          const colour = fn.colour ? ` Colour="${xmlAttr(fn.colour)}"` : "";
+          const intensity = attr.id === "Dimmer" ? ` Intensity="0~0"` : "";
+          const display = fn.display || fn.name || "";
+          const dmx = fn.dmx || (attr.resolution === "16-bit" ? "0~65535" : "0~255");
+          lines.push(
+            `      <Function ID="${idx + 1}" Name="${xmlAttr(fn.name || `Function ${idx + 1}`)}" Display="${xmlAttr(
+              display
+            )}" Dmx="${xmlAttr(dmx)}"${colour}${intensity} />`
+          );
+        });
+      }
       lines.push(`    </Attribute>`);
     }
     lines.push(`  </Control>`);
@@ -1370,6 +1416,8 @@
       personalityVersion: next.personalityVersion || "0",
       tags: next.tags || "",
       updateVersionOnDirty: next.updateVersionOnDirty !== false,
+      atlaBase: next.atlaBase || "00000000-0000-0000-0000-000000000000",
+      rdm: next.rdm || "ESTA: -1 Model: -1",
       attributes: next.attributes || [],
       modes: (next.modes || []).map((m) => ({
         ...m,
@@ -1408,19 +1456,30 @@
     next.shortName = root.getAttribute("ShortName") || next.name.slice(0, 10);
     next.personalityVersion = root.getAttribute("Version") || next.personalityVersion || "0";
     for (const attrEl of root.querySelectorAll("Control > Attribute")) {
-      const functions = [...attrEl.querySelectorAll(":scope > Function")].map((fn, i) => ({
+      const mapFn = (fn, i) => ({
         id: fn.getAttribute("ID") || String(i + 1),
         name: fn.getAttribute("Name") || "",
         dmx: fn.getAttribute("Dmx") || "0~255",
         display: fn.getAttribute("Display") || fn.getAttribute("Name") || "",
         colour: fn.getAttribute("Colour") || undefined,
-      }));
+      });
+      // Prefer direct Functions; if Attribute uses Condition-only layout, flatten for DMX Values editing.
+      let functions = [...attrEl.querySelectorAll(":scope > Function")].map(mapFn);
+      if (!functions.length) {
+        functions = [...attrEl.querySelectorAll(":scope > Condition Function")].map(mapFn);
+      }
       const locateEl = attrEl.querySelector(":scope > Locate");
       const dmxSample = functions[0]?.dmx || "0~255";
       const sizeAttr = Number(attrEl.getAttribute("Size") || 0);
       const is16 = sizeAttr >= 2 || dmxSample.split("~").some((v) => Number(v) > 255);
       const id = attrEl.getAttribute("ID") || `Attr${next.attributes.length + 1}`;
       const cat = ATTR_CATALOG.find((c) => c.id === id);
+      const conditions = [...attrEl.querySelectorAll(":scope > Condition")].map((cond) => ({
+        ifExpr: cond.getAttribute("If") || "",
+        elseBranch: cond.getAttribute("Else") === "true" || cond.tagName === "Else",
+        functionIds: [...cond.querySelectorAll("Function")].map((f) => f.getAttribute("ID") || f.getAttribute("Id") || "").filter(Boolean),
+        rawInner: cond.innerHTML.trim(),
+      }));
       next.attributes.push({
         id,
         name: attrEl.getAttribute("Name") || "",
@@ -1432,9 +1491,14 @@
         functions,
         locate: locateEl?.getAttribute("Locate") || "1:100",
         powerOn: locateEl?.getAttribute("PowerOn") || "",
-        hasConditions: !!attrEl.querySelector(":scope > Condition"),
+        highlight: locateEl?.getAttribute("Highlight") || "",
+        lowlight: locateEl?.getAttribute("Lowlight") || "",
+        conditions,
+        hasConditions: conditions.length > 0,
       });
     }
+    const atla = root.querySelector(":scope > AtlaBase");
+    if (atla) next.atlaBase = atla.getAttribute("TypeID") || next.atlaBase;
     for (const modeEl of root.querySelectorAll(":scope > Mode")) {
       const includes = [...modeEl.querySelectorAll(":scope > Include > Attribute")].map((a) => ({
         id: a.getAttribute("ID") || "",
@@ -1863,11 +1927,15 @@
       </div>`;
   }
 
+  function propsTypeHeader(label) {
+    return `<div class="props-header">${esc(label)}</div>`;
+  }
+
   function renderPropertiesTab() {
     if (selection.kind === "fixture") {
-      setHelp("Identidad del fixture. Luego crea el modo desde el patch del manual.");
+      setHelp("Name of this fixture");
       const hero = !state.attributes.length && !state.modes.length ? creationHero() : "";
-      return `${hero}
+      return `${hero}${propsTypeHeader("Fixture")}
         <table class="prop-grid">
           <tr><th colspan="2">Fixture</th></tr>
           <tr><td class="label">Display Name</td><td><input id="p-short" maxlength="10" value="${esc(state.shortName)}" /></td></tr>
@@ -1875,20 +1943,25 @@
           <tr><td class="label">Name</td><td><input id="p-name" value="${esc(state.name)}" /></td></tr>
           <tr><td class="label">Personality Version</td><td><input id="p-ver" value="${esc(state.personalityVersion)}" /></td></tr>
           <tr><td class="label">Tags</td><td><input id="p-tags" value="${esc(state.tags)}" /></td></tr>
+          <tr><th colspan="2">Thumbnail</th></tr>
+          <tr><td class="label">Thumbnail</td><td><span class="empty">(not stored in replica MVP)</span></td></tr>
           <tr><th colspan="2">Misc</th></tr>
           <tr><td class="label">UpdateVersionOnDirty</td><td>
             <select id="p-dirty"><option value="true" ${state.updateVersionOnDirty ? "selected" : ""}>True</option>
             <option value="false" ${!state.updateVersionOnDirty ? "selected" : ""}>False</option></select>
           </td></tr>
+          <tr><th colspan="2">References</th></tr>
+          <tr><td class="label">AtlaBase Device Information</td><td><input id="p-atla" value="${esc(state.atlaBase)}" /></td></tr>
+          <tr><td class="label">RDM Device Information</td><td><input id="p-rdm" value="${esc(state.rdm)}" /></td></tr>
         </table>`;
     }
     if (selection.kind === "attribute") {
       const a = findAttr(selection.id);
       if (!a) return `<p class="empty">Atributo no encontrado.</p>`;
       setHelp("Attribute ID: Unique identifier used by Titan (shapes, colour pickers, HTP).");
-      return `
+      return `${propsTypeHeader(a.name || a.id)}
         <table class="prop-grid">
-          <tr><th colspan="2">Attribute Properties</th></tr>
+          <tr><th colspan="2">Attribute</th></tr>
           <tr><td class="label">Attribute ID</td><td><input id="p-aid" value="${esc(a.id)}" /></td></tr>
           <tr><td class="label">Name</td><td><input id="p-aname" value="${esc(a.name)}" /></td></tr>
           <tr><td class="label">Group</td><td>
@@ -1905,6 +1978,16 @@
           <tr><td class="label">Bank</td><td><input id="p-bank" value="${esc(a.bank)}" /></td></tr>
           <tr><td class="label">Page</td><td><input id="p-page" value="${esc(a.page)}" /></td></tr>
           <tr><td class="label">Wheel</td><td><input id="p-wheel" value="${esc(a.wheel)}" /></td></tr>
+          ${
+            a.hasConditions || (a.conditions && a.conditions.length)
+              ? `<tr><th colspan="2">Conditions (read-only)</th></tr>
+          <tr><td class="label">Links</td><td><pre class="cond-read">${esc(
+            (a.conditions || [])
+              .map((c) => `${c.ifExpr || "(Else)"}${c.functionIds?.length ? ` → fn ${c.functionIds.join(",")}` : ""}`)
+              .join("\n") || "(present)"
+          )}</pre></td></tr>`
+              : ""
+          }
         </table>`;
     }
     if (selection.kind === "mode") {
@@ -1914,6 +1997,7 @@
       const cellCount = m.cells?.cells?.length || 0;
       return `
         ${modeActionsBar(m.name)}
+        ${propsTypeHeader("Mode")}
         <table class="prop-grid">
           <tr><th colspan="2">Mode</th></tr>
           <tr><td class="label">Name</td><td><input id="p-mname" value="${esc(m.name)}" /></td></tr>
@@ -2086,11 +2170,26 @@
 
   function renderLocateTab() {
     if (!state.attributes.length) return `<p class="empty">Sin atributos.</p>`;
-    setHelp("Locate Values: state when Locate is pressed on the console.");
+    setHelp("Locate / PowerOn / Highlight / Lowlight — fn:percent (e.g. 1:100). Matches PB Locate Values.");
     const rows = state.attributes
-      .map((a) => `<tr><td>${esc(a.name)}</td><td><input data-loc-id="${esc(a.id)}" value="${esc(a.locate)}" /></td></tr>`)
+      .map((a) => {
+        const loc = a.locate || defaultLocateValue(a);
+        const pow = a.powerOn || defaultPowerOnValue(a);
+        const hi = a.highlight || defaultHighlightValue(a);
+        const lo = a.lowlight || defaultLowlightValue(a);
+        return `<tr>
+          <td>${esc(a.name)}</td>
+          <td><input data-loc-id="${esc(a.id)}" data-loc-f="locate" value="${esc(loc)}" /></td>
+          <td><input data-loc-id="${esc(a.id)}" data-loc-f="powerOn" value="${esc(pow)}" /></td>
+          <td><input data-loc-id="${esc(a.id)}" data-loc-f="highlight" value="${esc(hi)}" /></td>
+          <td><input data-loc-id="${esc(a.id)}" data-loc-f="lowlight" value="${esc(lo)}" /></td>
+        </tr>`;
+      })
       .join("");
-    return `<table class="dmx-table"><thead><tr><th>Attribute</th><th>Locate (fn:percent)</th></tr></thead><tbody>${rows}</tbody></table>`;
+    return `<table class="dmx-table">
+      <thead><tr><th>Attribute</th><th>Locate</th><th>PowerOn</th><th>Highlight</th><th>Lowlight</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
   }
 
   function bindPropsHandlers() {
@@ -2101,17 +2200,21 @@
       const ver = document.getElementById("p-ver");
       const tags = document.getElementById("p-tags");
       const dirtySel = document.getElementById("p-dirty");
+      const atla = document.getElementById("p-atla");
+      const rdm = document.getElementById("p-rdm");
       if (man) state.manufacturer = man.value;
       if (name) state.name = name.value;
       if (short) state.shortName = short.value.slice(0, 10);
       if (ver) state.personalityVersion = ver.value;
       if (tags) state.tags = tags.value;
       if (dirtySel) state.updateVersionOnDirty = dirtySel.value === "true";
+      if (atla) state.atlaBase = atla.value;
+      if (rdm) state.rdm = rdm.value;
       markDirty();
       renderTree();
       updateTitle();
     };
-    ["p-man", "p-name", "p-short", "p-ver", "p-tags", "p-dirty"].forEach((id) => {
+    ["p-man", "p-name", "p-short", "p-ver", "p-tags", "p-dirty", "p-atla", "p-rdm"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener("input", syncFixture);
@@ -2236,10 +2339,10 @@
     document.querySelectorAll("[data-loc-id]").forEach((input) => {
       input.addEventListener("change", () => {
         const attr = findAttr(input.dataset.locId);
-        if (attr) {
-          attr.locate = input.value;
-          markDirty();
-        }
+        if (!attr) return;
+        const field = input.dataset.locF || "locate";
+        attr[field] = input.value;
+        markDirty();
       });
     });
 
@@ -2542,6 +2645,95 @@
     if (e.type === "dblclick") activateCatalogItem(item);
   }
 
+  function closeMenus() {
+    document.querySelectorAll(".menu").forEach((m) => m.classList.remove("open"));
+    document.querySelectorAll(".menu-dropdown").forEach((d) => d.setAttribute("hidden", ""));
+  }
+
+  function openMenu(name) {
+    const already = document.querySelector(`.menu.open > .menu-btn[data-menu="${name}"]`);
+    closeMenus();
+    if (already) return;
+    const btn = document.querySelector(`.menu-btn[data-menu="${name}"]`);
+    const drop = document.getElementById(`menu-${name}`);
+    if (!btn || !drop) return;
+    btn.parentElement?.classList.add("open");
+    drop.removeAttribute("hidden");
+  }
+
+  function runMenuAction(act) {
+    closeMenus();
+    switch (act) {
+      case "new":
+        newFixture();
+        break;
+      case "open":
+      case "import-gdtf":
+        document.getElementById("file-import")?.click();
+        break;
+      case "save":
+      case "saveas":
+        exportD4();
+        break;
+      case "import-table":
+        openModal("modal-import-table");
+        break;
+      case "exit":
+        setStatus("Exit: close this browser tab/window to leave the replica.");
+        break;
+      case "dup-mode": {
+        const name =
+          selection.kind === "mode"
+            ? selection.name
+            : state.modes[0]?.name;
+        if (name) duplicateMode(name);
+        else setStatus("Select a Mode first (Edit → Duplicate Mode).");
+        break;
+      }
+      case "view-attributes":
+        catalogTab = "attributes";
+        renderCatalog();
+        break;
+      case "view-functions":
+        catalogTab = "functions";
+        renderCatalog();
+        break;
+      case "view-modes":
+        catalogTab = "modes";
+        selection = { kind: "modes" };
+        propsTab = "properties";
+        render();
+        break;
+      case "mode-first":
+        openModal("modal-mode-first");
+        break;
+      case "lint": {
+        const issues = runLinter();
+        renderLint(issues);
+        const err = issues.filter((i) => i.level === "error").length;
+        const warn = issues.filter((i) => i.level === "warn").length;
+        setStatus(err ? `Linter: ${err} errores, ${warn} avisos` : warn ? `Linter: ${warn} avisos` : "Linter OK");
+        break;
+      }
+      case "range-seq":
+        propsTab = "dmx";
+        if (selection.kind !== "attribute" && state.attributes[0]) {
+          selection = { kind: "attribute", id: state.attributes[0].id };
+        }
+        render();
+        setStatus("DMX Values → Range sequencer (additive Tools feature).");
+        break;
+      case "settings":
+        openModal("modal-settings");
+        break;
+      case "about":
+        openModal("modal-about");
+        break;
+      default:
+        break;
+    }
+  }
+
   function wire() {
     document.getElementById("tree").addEventListener("click", onTreeClick);
     document.getElementById("catalog-body").addEventListener("dblclick", onCatalogActivate);
@@ -2551,6 +2743,20 @@
       const it = e.target.closest("[data-open-it]");
       if (mf) openModal("modal-mode-first");
       if (it) openModal("modal-import-table");
+
+      const menuBtn = e.target.closest(".menu-btn");
+      if (menuBtn) {
+        e.stopPropagation();
+        openMenu(menuBtn.dataset.menu);
+        return;
+      }
+      const actBtn = e.target.closest(".menu-dropdown [data-act]");
+      if (actBtn) {
+        e.stopPropagation();
+        runMenuAction(actBtn.dataset.act);
+        return;
+      }
+      if (!e.target.closest(".menu")) closeMenus();
     });
 
     document.querySelectorAll("#catalog-tabs button").forEach((b) => {
@@ -2567,19 +2773,11 @@
       });
     });
 
-    document.getElementById("btn-new").addEventListener("click", newFixture);
-    document.getElementById("btn-export").addEventListener("click", exportD4);
-    document.getElementById("btn-import").addEventListener("click", () => document.getElementById("file-import").click());
     document.getElementById("file-import").addEventListener("change", (e) => {
       const file = e.target.files?.[0];
       if (file) importAnyFile(file);
       e.target.value = "";
     });
-
-    document.getElementById("btn-mode-first")?.addEventListener("click", () => openModal("modal-mode-first"));
-    document.getElementById("btn-quick-create")?.addEventListener("click", () => openModal("modal-mode-first"));
-    document.getElementById("btn-import-table")?.addEventListener("click", () => openModal("modal-import-table"));
-    document.getElementById("btn-settings")?.addEventListener("click", () => openModal("modal-settings"));
 
     const closeMvr = () => {
       closeModal("modal-mvr-pick");
@@ -2600,13 +2798,6 @@
         setStatus(`${t("import.gdtfMissing")} ${err.message || err}`);
       }
     });
-    document.getElementById("btn-run-lint")?.addEventListener("click", () => {
-      const issues = runLinter();
-      renderLint(issues);
-      const err = issues.filter((i) => i.level === "error").length;
-      const warn = issues.filter((i) => i.level === "warn").length;
-      setStatus(err ? `Linter: ${err} errores, ${warn} avisos` : warn ? `Linter: ${warn} avisos` : "Linter OK");
-    });
 
     const closeSettings = () => closeModal("modal-settings");
     document.getElementById("settings-cancel")?.addEventListener("click", closeSettings);
@@ -2614,6 +2805,9 @@
     document.getElementById("settings-lang")?.addEventListener("change", (e) => {
       applyLanguage(e.target.value);
     });
+
+    document.getElementById("about-close")?.addEventListener("click", () => closeModal("modal-about"));
+    document.getElementById("about-ok")?.addEventListener("click", () => closeModal("modal-about"));
 
     const closeMf = () => closeModal("modal-mode-first");
     document.getElementById("mf-cancel")?.addEventListener("click", closeMf);
@@ -2631,19 +2825,19 @@
     const closeIt = () => closeModal("modal-import-table");
     document.getElementById("it-cancel")?.addEventListener("click", closeIt);
     document.getElementById("it-cancel-2")?.addEventListener("click", closeIt);
-    document.getElementById("it-file")?.addEventListener("click", () => document.getElementById("file-csv")?.click());
+    document.getElementById("it-file-btn")?.addEventListener("click", () => document.getElementById("file-csv")?.click());
     document.getElementById("file-csv")?.addEventListener("change", async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
       const text = await file.text();
-      const ta = document.getElementById("it-text");
+      const ta = document.getElementById("it-table");
       if (ta) ta.value = text;
       updateChannelPreview("it");
       e.target.value = "";
     });
-    document.getElementById("it-text")?.addEventListener("input", () => updateChannelPreview("it"));
+    document.getElementById("it-table")?.addEventListener("input", () => updateChannelPreview("it"));
     document.getElementById("it-apply")?.addEventListener("click", () => {
-      const rows = parseChannelLines(document.getElementById("it-text")?.value || "");
+      const rows = parseChannelLines(document.getElementById("it-table")?.value || "");
       const modeName = document.getElementById("it-name")?.value || "From manual";
       if (applyChannelRows(rows, modeName)) closeModal("modal-import-table");
     });
@@ -2656,9 +2850,12 @@
 
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
+        closeMenus();
         closeModal("modal-mode-first");
         closeModal("modal-import-table");
         closeModal("modal-settings");
+        closeModal("modal-about");
+        closeModal("modal-mvr-pick");
         return;
       }
       if (!(e.ctrlKey || e.metaKey)) return;
