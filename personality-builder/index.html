@@ -66,7 +66,7 @@
         </div>
       </div>
       <span class="menubar-spacer"></span>
-      <span class="menubar-hint" id="title-fixture">Fixture 1</span>
+      <span class="menubar-hint" id="title-fixture" hidden>Fixture 1</span>
     </div>
 
     <div class="workspace">
@@ -93,7 +93,12 @@
         </section>
 
         <section class="props-pane">
-          <div class="tabs" id="props-tabs">
+          <div class="pane-body" id="props-body"></div>
+          <div class="help-bar" id="help-bar">
+            <div id="help-name">Name</div>
+            <div id="help-desc">Name of this fixture</div>
+          </div>
+          <div class="tabs tabs-bottom" id="props-tabs">
             <button type="button" data-tab="properties" class="active">Properties</button>
             <button type="button" data-tab="dmx">DMX Values</button>
             <button type="button" data-tab="channels">Channels</button>
@@ -101,8 +106,6 @@
             <button type="button" data-tab="locate">Locate Values</button>
             <button type="button" data-tab="cells">Cells</button>
           </div>
-          <div class="pane-body" id="props-body"></div>
-          <div class="help-bar" id="help-bar">Name of this fixture</div>
         </section>
       </div>
     </div>

@@ -458,12 +458,42 @@
     }
   }
 
-  function setHelp(text) {
-    const el = document.getElementById("help-bar");
-    if (el) {
-      el.removeAttribute("data-i18n");
-      el.textContent = text;
-    }
+  function setHelp(text, title) {
+    const name = document.getElementById("help-name");
+    const desc = document.getElementById("help-desc");
+    if (name) name.textContent = title || "";
+    if (desc) desc.textContent = text || "";
+  }
+
+  /** Small icon to the left of the label, same slots as PB 3.4.1. */
+  function pbIcon(name) {
+    const n = String(name || "");
+    const key = n.toLowerCase();
+    let kind = "diamond";
+    if (key === "generic" || key === "reserved" || key === "control") kind = "plus";
+    else if (key === "dimmer" || key === "shutter") kind = "star";
+    else if (key === "pan") kind = "pan";
+    else if (key === "tilt") kind = "tilt";
+    else if (key === "colour" || key === "colour 1" || key === "colour macro") kind = "cmy";
+    else if (key === "colour 2") kind = "rgb";
+    else if (key.includes("gobo")) kind = "gobo";
+    else if (key === "iris") kind = "iris";
+    else if (key === "focus") kind = "focus";
+    else if (key === "frost") kind = "frost";
+    else if (key === "zoom") kind = "zoom";
+    else if (key.includes("prism")) kind = "prism";
+    else if (key.includes("effect")) kind = "effect";
+    else if (key.includes("speed")) kind = "speed";
+    else if (["red", "green", "blue", "cyan", "magenta", "yellow", "white", "amber", "cto", "hue", "saturation"].includes(key)) kind = "swatch " + key.replace(/\s+/g, "");
+    else if (key.includes("keystone") || key.includes("blade") || key.includes("ratio")) kind = "diamond";
+    return `<span class="pb-ico ${kind}" aria-hidden="true"></span>`;
+  }
+
+  function pbListItem(opts) {
+    const attrs = Object.entries(opts.data || {})
+      .map(([k, v]) => ` data-${k}="${esc(v)}"`)
+      .join("");
+    return `<button type="button" class="pb-item catalog-item" draggable="true"${attrs} title="${esc(opts.title || opts.label)}">${pbIcon(opts.iconName || opts.label)}<span>${esc(opts.label)}</span></button>`;
   }
 
   function updateStatusCounts() {
@@ -1969,9 +1999,9 @@
     const attrNodes = state.attributes
       .map((a) => {
         const sel = selection.kind === "attribute" && selection.id === a.id ? "selected" : "";
-        return `<li><div class="node ${sel}" data-kind="attribute" data-id="${esc(a.id)}"><span class="twist"></span><span class="icon">◆</span>${esc(
+        return `<li><div class="node ${sel}" data-kind="attribute" data-id="${esc(a.id)}"><span class="twist"></span>${pbIcon(a.name)}<span>${esc(
           a.name
-        )}</div></li>`;
+        )}</span></div></li>`;
       })
       .join("");
     const modeNodes = state.modes
@@ -1980,15 +2010,15 @@
         const kids = m.includes
           .map(
             (inc) =>
-              `<li><div class="node" data-kind="mode-attr" data-id="${esc(inc.id)}"><span class="twist"></span><span class="icon">·</span>${esc(
+              `<li><div class="node" data-kind="mode-attr" data-id="${esc(inc.id)}"><span class="twist"></span>${pbIcon(
                 inc.id
-              )} <span style="opacity:.7">@${esc(inc.channelOffset || "virt")}</span></div></li>`
+              )}<span>${esc(inc.id)}</span> <span class="node-link">@${esc(inc.channelOffset || "virt")}</span></div></li>`
           )
           .join("");
         return `<li>
-          <div class="node ${sel}" data-kind="mode" data-name="${esc(m.name)}"><span class="twist">▾</span><span class="icon">☰</span>${esc(
+          <div class="node ${sel}" data-kind="mode" data-name="${esc(m.name)}"><span class="twist">▾</span><span class="node-ico ico-mode"></span><span>${esc(
             m.name
-          )} (${m.channels})</div>
+          )} (${m.channels})</span></div>
           <ul>${kids}</ul>
         </li>`;
       })
@@ -1996,23 +2026,23 @@
 
     // Order matches PB 3.4.1: History, Manual, Physical, Attributes, Modes, Macros, Palettes
     root.innerHTML = `
-      <li><div class="node ${selection.kind === "fixture" ? "selected" : ""}" data-kind="fixture"><span class="twist">▾</span><span class="icon">💡</span>${esc(
+      <li><div class="node ${selection.kind === "fixture" ? "selected" : ""}" data-kind="fixture"><span class="twist">▾</span><span class="node-ico ico-fixture"></span><span>${esc(
         state.name
-      )}</div>
+      )}</span></div>
         <ul>
-          <li><div class="node ${selection.kind === "history" ? "selected" : ""}" data-kind="history"><span class="twist"></span><span class="icon">🕒</span>History</div></li>
-          <li><div class="node ${selection.kind === "manual" ? "selected" : ""}" data-kind="manual"><span class="twist"></span><span class="icon">📄</span>Manual</div></li>
-          <li><div class="node ${selection.kind === "physical" ? "selected" : ""}" data-kind="physical"><span class="twist"></span><span class="icon">📐</span>Physical</div></li>
+          <li><div class="node ${selection.kind === "history" ? "selected" : ""}" data-kind="history"><span class="twist"></span><span class="node-ico ico-history"></span><span>History</span></div></li>
+          <li><div class="node ${selection.kind === "manual" ? "selected" : ""}" data-kind="manual"><span class="twist"></span><span class="node-ico ico-manual"></span><span>Manual</span></div></li>
+          <li><div class="node ${selection.kind === "physical" ? "selected" : ""}" data-kind="physical"><span class="twist"></span><span class="node-ico ico-physical"></span><span>Physical</span></div></li>
           <li>
-            <div class="node ${selection.kind === "attributes" ? "selected" : ""}" data-kind="attributes"><span class="twist">▾</span><span class="icon">▤</span>Attributes</div>
+            <div class="node ${selection.kind === "attributes" ? "selected" : ""}" data-kind="attributes"><span class="twist">▾</span><span class="node-ico ico-attrs"></span><span>Attributes</span></div>
             <ul>${attrNodes}</ul>
           </li>
           <li>
-            <div class="node ${selection.kind === "modes" ? "selected" : ""}" data-kind="modes"><span class="twist">▾</span><span class="icon">☰</span>Modes</div>
+            <div class="node ${selection.kind === "modes" ? "selected" : ""}" data-kind="modes"><span class="twist">▾</span><span class="node-ico ico-mode"></span><span>Modes</span></div>
             <ul>${modeNodes}</ul>
           </li>
-          <li><div class="node ${selection.kind === "macros" || selection.kind === "macro" ? "selected" : ""}" data-kind="macros"><span class="twist"></span><span class="icon">⌘</span>Macros</div></li>
-          <li><div class="node ${selection.kind === "palettes" || selection.kind === "palette" ? "selected" : ""}" data-kind="palettes"><span class="twist"></span><span class="icon">▣</span>Palettes</div></li>
+          <li><div class="node ${selection.kind === "macros" || selection.kind === "macro" ? "selected" : ""}" data-kind="macros"><span class="twist"></span><span class="node-ico ico-macro"></span><span>Macros</span></div></li>
+          <li><div class="node ${selection.kind === "palettes" || selection.kind === "palette" ? "selected" : ""}" data-kind="palettes"><span class="twist"></span><span class="node-ico ico-palette"></span><span>Palettes</span></div></li>
         </ul>
       </li>`;
   }
@@ -2024,16 +2054,14 @@
     const stub = (label) => `<p class="empty">${label}</p>`;
 
     if (catalogTab === "attributes") {
-      const hero = !state.attributes.length && !state.modes.length ? creationHero() : "";
-      body.innerHTML = `${hero}<div class="catalog-grid">${ATTR_CATALOG.map(
-        (item) => `
-        <div class="catalog-item" draggable="true" data-type="attr" data-id="${esc(item.id)}" title="${esc(item.bank)} / ${esc(item.wheel)}">
-          <div class="glyph">${esc(item.glyph || item.name.slice(0, 3).toUpperCase())}</div>
-          <div class="label">${esc(item.name)}</div>
-          <button type="button" class="add-btn" data-add>+</button>
-        </div>`
-      ).join("")}</div>
-      <p class="empty">${ATTR_CATALOG.length} atributos del catálogo PB. Usa + para añadir.</p>`;
+      body.innerHTML = `<div class="catalog-grid pb-icons">${ATTR_CATALOG.map((item) =>
+        pbListItem({
+          label: item.name,
+          iconName: item.name,
+          title: item.name,
+          data: { type: "attr", id: item.id },
+        })
+      ).join("")}</div>`;
     } else if (catalogTab === "functions") {
       if (!FUNC_GROUPS.some((g) => g.id === funcCatalogGroup)) funcCatalogGroup = "I";
       const items = FUNC_CATALOG.map((fn, i) => ({ fn, i })).filter(({ fn }) => fn.group === funcCatalogGroup);
@@ -2045,41 +2073,36 @@
       ).join("");
       body.innerHTML = `
         <div class="func-group-tabs">${sub}</div>
-        <div class="catalog-grid">${items
-          .map(
-            ({ fn, i }) => `
-        <div class="catalog-item" draggable="true" data-type="func" data-index="${i}" title="${esc(fn.display)} · DMX ${esc(fn.dmx)}">
-          <div class="glyph">${esc(fn.glyph || "ƒ")}</div>
-          <div class="label">${esc(fn.name)}</div>
-          <button type="button" class="add-btn" data-add>+</button>
-        </div>`
+        <div class="catalog-grid pb-icons">${items
+          .map(({ fn, i }) =>
+            pbListItem({
+              label: fn.name,
+              iconName: fn.name,
+              title: `${fn.display} · DMX ${fn.dmx}`,
+              data: { type: "func", index: String(i) },
+            })
           )
-          .join("")}</div>
-        <p class="empty">${items.length} presets · grupo ${esc(
-        FUNC_GROUPS.find((g) => g.id === funcCatalogGroup)?.label || funcCatalogGroup
-      )} (PB)</p>`;
+          .join("")}</div>`;
     } else if (catalogTab === "created") {
       body.innerHTML = state.attributes.length
-        ? `<div class="catalog-grid">${state.attributes
-            .map(
-              (a) => `
-          <div class="catalog-item" draggable="true" data-type="created" data-id="${esc(a.id)}">
-            <div class="glyph">${esc(a.group)}</div>
-            <div class="label">${esc(a.name)}</div>
-            <button type="button" class="add-btn" data-add>+</button>
-          </div>`
+        ? `<div class="catalog-grid pb-icons">${state.attributes
+            .map((a) =>
+              pbListItem({
+                label: a.name,
+                iconName: a.name,
+                data: { type: "created", id: a.id },
+              })
             )
-            .join("")}</div>
-          <p class="empty">Con un Mode seleccionado, + mapea ChannelOffset.</p>`
-        : `<p class="empty">Aún no hay atributos creados.</p>`;
+            .join("")}</div>`
+        : `<p class="empty">No created attributes.</p>`;
     } else if (catalogTab === "modes") {
-      body.innerHTML = `<div class="catalog-grid">${MODE_TEMPLATES.map(
-        (m, i) => `
-        <div class="catalog-item" data-type="mode-tpl" data-index="${i}">
-          <div class="glyph">${m.channels || "M"}</div>
-          <div class="label">${esc(m.name)}</div>
-          <button type="button" class="add-btn" data-add>+</button>
-        </div>`
+      body.innerHTML = `<div class="catalog-grid pb-icons">${MODE_TEMPLATES.map((m, i) =>
+        pbListItem({
+          label: m.name,
+          iconName: "Mode",
+          title: `${m.channels} ch`,
+          data: { type: "mode-tpl", index: String(i) },
+        })
       ).join("")}</div>`;
     } else if (catalogTab === "current") {
       const a = selection.kind === "attribute" ? findAttr(selection.id) : state.attributes[0];
@@ -2394,28 +2417,36 @@
 
   function renderPropertiesTab() {
     if (selection.kind === "fixture") {
-      setHelp("Name of this fixture");
-      const hero = !state.attributes.length && !state.modes.length ? creationHero() : "";
+      setHelp("Name of this fixture", "Name");
+      const hero = "";
       return `${hero}${propsTypeHeader("Fixture")}
         <table class="prop-grid">
-          <tr><th colspan="2">Fixture</th></tr>
-          <tr><td class="label">Display Name</td><td><input id="p-short" maxlength="10" value="${esc(state.shortName)}" /></td></tr>
-          <tr><td class="label">Manufacturer</td><td><input id="p-man" value="${esc(state.manufacturer)}" /></td></tr>
-          <tr><td class="label">Name</td><td><input id="p-name" value="${esc(state.name)}" /></td></tr>
-          <tr><td class="label">Personality Version</td><td><input id="p-ver" value="${esc(state.personalityVersion)}" /></td></tr>
-          <tr><td class="label">Tags</td><td><input id="p-tags" value="${esc(state.tags)}" /></td></tr>
-          <tr><th colspan="2">Thumbnail</th></tr>
-          <tr><td class="label">Thumbnail</td><td><input id="p-thumb" value="${esc(state.thumbnail)}" placeholder="swatch guid" /></td></tr>
-          <tr><td class="label">Image</td><td><input id="p-thumb-file" type="file" accept="image/png,image/jpeg" /></td></tr>
-          <tr><th colspan="2">Misc</th></tr>
-          <tr><td class="label">UpdateVersionOnDirty</td><td>
+          <tbody data-cat="fixture">
+          <tr class="cat" data-open="1"><td colspan="2"><span class="tw">▼</span> Fixture</td></tr>
+          <tr class="prop-row selected" data-help-title="Display Name" data-help="Short name shown on the console buttons."><td class="label">Display Name</td><td class="val"><input id="p-short" maxlength="10" value="${esc(state.shortName)}" /></td></tr>
+          <tr class="prop-row" data-help-title="Manufacturer" data-help="Manufacturer of this fixture."><td class="label">Manufacturer</td><td class="val"><input id="p-man" value="${esc(state.manufacturer)}" /></td></tr>
+          <tr class="prop-row" data-help-title="Name" data-help="Name of this fixture"><td class="label">Name</td><td class="val"><input id="p-name" value="${esc(state.name)}" /></td></tr>
+          <tr class="prop-row" data-help-title="Personality Version" data-help="Version number stored on the personality."><td class="label">Personality Version</td><td class="val"><input id="p-ver" value="${esc(state.personalityVersion)}" /></td></tr>
+          <tr class="prop-row" data-help-title="Tags" data-help="Tags for this personality."><td class="label">Tags</td><td class="val"><input id="p-tags" value="${esc(state.tags)}" /></td></tr>
+          </tbody>
+          <tbody data-cat="thumb">
+          <tr class="cat" data-open="0"><td colspan="2"><span class="tw">▶</span> Thumbnail</td></tr>
+          <tr class="prop-row cat-body" hidden data-help-title="Thumbnail" data-help="Swatch image linked to this fixture."><td class="label">Thumbnail</td><td class="val"><input id="p-thumb" value="${esc(state.thumbnail)}" /></td></tr>
+          <tr class="prop-row cat-body" hidden data-help-title="Image" data-help="Import a PNG used as the fixture swatch."><td class="label">Image</td><td class="val"><input id="p-thumb-file" type="file" accept="image/png,image/jpeg" /></td></tr>
+          </tbody>
+          <tbody data-cat="misc">
+          <tr class="cat" data-open="1"><td colspan="2"><span class="tw">▼</span> Misc</td></tr>
+          <tr class="prop-row" data-help-title="UpdateVersionOnDirty" data-help="When true, the personality version increments after an edit."><td class="label">UpdateVersionOnDirty</td><td class="val">
             <select id="p-dirty"><option value="true" ${state.updateVersionOnDirty ? "selected" : ""}>True</option>
             <option value="false" ${!state.updateVersionOnDirty ? "selected" : ""}>False</option></select>
           </td></tr>
-          <tr><th colspan="2">References</th></tr>
-          <tr><td class="label">AtlaBase Device Information</td><td><input id="p-atla" value="${esc(state.atlaBase)}" /></td></tr>
-          <tr><td class="label">AtlaBase Mode ID</td><td><input id="p-atla-mode" value="${esc(state.atlaModeId)}" /></td></tr>
-          <tr><td class="label">RDM Device Information</td><td><input id="p-rdm" value="${esc(state.rdm)}" /></td></tr>
+          </tbody>
+          <tbody data-cat="refs">
+          <tr class="cat" data-open="1"><td colspan="2"><span class="tw">▼</span> References</td></tr>
+          <tr class="prop-row" data-help-title="AtlaBase Device Information" data-help="AtlaBase device GUID."><td class="label">AtlaBase Device Information</td><td class="val"><input id="p-atla" value="${esc(state.atlaBase)}" /></td></tr>
+          <tr class="prop-row" data-help-title="AtlaBase Mode ID" data-help="Optional AtlaBase mode GUID."><td class="label">AtlaBase Mode ID</td><td class="val"><input id="p-atla-mode" value="${esc(state.atlaModeId)}" /></td></tr>
+          <tr class="prop-row" data-help-title="RDM Device Information" data-help="RDM manufacturer and model."><td class="label">RDM Device Information</td><td class="val"><input id="p-rdm" value="${esc(state.rdm)}" /></td></tr>
+          </tbody>
         </table>`;
     }
     if (selection.kind === "attribute") {
@@ -3561,6 +3592,27 @@
 
   function wire() {
     document.getElementById("tree").addEventListener("click", onTreeClick);
+    document.getElementById("props-body")?.addEventListener("click", (e) => {
+      const cat = e.target.closest("tr.cat");
+      if (cat) {
+        const body = cat.parentElement;
+        const rows = [...body.querySelectorAll("tr.prop-row")];
+        const open = cat.dataset.open === "1";
+        cat.dataset.open = open ? "0" : "1";
+        const tw = cat.querySelector(".tw");
+        if (tw) tw.textContent = open ? "▶" : "▼";
+        rows.forEach((row) => {
+          if (open) row.setAttribute("hidden", "");
+          else row.removeAttribute("hidden");
+        });
+        return;
+      }
+      const row = e.target.closest("tr.prop-row");
+      if (!row || !row.dataset.helpTitle) return;
+      document.querySelectorAll("#props-body tr.prop-row.selected").forEach((r) => r.classList.remove("selected"));
+      row.classList.add("selected");
+      setHelp(row.dataset.help || "", row.dataset.helpTitle || "");
+    });
     document.getElementById("catalog-body").addEventListener("dblclick", onCatalogActivate);
     document.getElementById("catalog-body").addEventListener("click", onCatalogActivate);
     document.addEventListener("click", (e) => {
