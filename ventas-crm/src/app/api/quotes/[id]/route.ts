@@ -2,6 +2,7 @@ import { z } from "zod";
 import { sql, sqlOne } from "@/lib/db";
 import { badRequest, json, notFound } from "@/lib/api";
 import { logActivity, requireSession } from "@/lib/org";
+import { quoteMargin, toNumber } from "@/lib/money";
 import type { Quote, QuoteItem } from "@/lib/types";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -23,7 +24,14 @@ export async function GET(request: Request, ctx: Ctx) {
     `select * from quote_items where quote_id = $1 order by sort_order`,
     [id],
   );
-  return json({ quote, items });
+  const margin = quoteMargin(
+    items.map((i) => ({
+      quantity: toNumber(i.quantity),
+      unit_price: toNumber(i.unit_price),
+      cost_price: toNumber(i.cost_price),
+    })),
+  );
+  return json({ quote, items, margin });
 }
 
 const patchSchema = z.object({

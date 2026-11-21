@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api, formatDate } from "@/lib/client";
-import { money, toNumber } from "@/lib/money";
+import { money, quoteMargin, toNumber } from "@/lib/money";
 import type { Contact, Deal, Product, Quote, QuoteItem } from "@/lib/types";
 
 type Line = {
@@ -10,6 +10,14 @@ type Line = {
   description: string;
   quantity: number;
   unit_price: number;
+  cost_price: number;
+};
+
+type QuoteMargin = {
+  revenue: number;
+  cost: number;
+  profit: number;
+  margin_percent: number;
 };
 
 export default function QuotesPage() {
@@ -20,9 +28,16 @@ export default function QuotesPage() {
   const [selected, setSelected] = useState<{
     quote: Quote;
     items: QuoteItem[];
+    margin?: QuoteMargin;
   } | null>(null);
   const [lines, setLines] = useState<Line[]>([
-    { product_id: null, description: "", quantity: 1, unit_price: 0 },
+    {
+      product_id: null,
+      description: "",
+      quantity: 1,
+      unit_price: 0,
+      cost_price: 0,
+    },
   ]);
   const [dealId, setDealId] = useState("");
   const [contactId, setContactId] = useState("");
@@ -45,11 +60,16 @@ export default function QuotesPage() {
     load().catch((e: Error) => setError(e.message));
   }, []);
 
-  const previewTotal = useMemo(
+  const previewMargin = useMemo(
     () =>
-      lines.reduce(
-        (sum, line) => sum + line.quantity * line.unit_price,
-        0,
+      quoteMargin(
+        lines
+          .filter((l) => l.description)
+          .map((l) => ({
+            quantity: l.quantity,
+            unit_price: l.unit_price,
+            cost_price: l.cost_price,
+          })),
       ),
     [lines],
   );
@@ -64,6 +84,7 @@ export default function QuotesPage() {
         description: product.name,
         quantity: 1,
         unit_price: toNumber(product.unit_price),
+        cost_price: toNumber(product.cost_price),
       },
     ]);
   }
@@ -87,7 +108,13 @@ export default function QuotesPage() {
         }),
       });
       setLines([
-        { product_id: null, description: "", quantity: 1, unit_price: 0 },
+        {
+          product_id: null,
+          description: "",
+          quantity: 1,
+          unit_price: 0,
+          cost_price: 0,
+        },
       ]);
       await load();
     } catch (err) {
@@ -96,9 +123,11 @@ export default function QuotesPage() {
   }
 
   async function openQuote(id: string) {
-    const data = await api<{ quote: Quote; items: QuoteItem[] }>(
-      `/api/quotes/${id}`,
-    );
+    const data = await api<{
+      quote: Quote;
+      items: QuoteItem[];
+      margin?: QuoteMargin;
+    }>(`/api/quotes/${id}`);
     setSelected(data);
   }
 
@@ -165,7 +194,7 @@ export default function QuotesPage() {
               <option value="">Elegir producto…</option>
               {products.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} — {money(p.unit_price)}
+                  {p.name} — {money(p.unit_price)} (costo {money(p.cost_price)})
                 </option>
               ))}
             </select>
@@ -176,7 +205,7 @@ export default function QuotesPage() {
           {lines.map((line, index) => (
             <div
               key={index}
-              className="grid gap-2 md:grid-cols-[1fr_100px_140px_auto]"
+              className="grid gap-2 md:grid-cols-[1fr_80px_110px_110px_auto]"
             >
               <input
                 className="input"
@@ -193,6 +222,7 @@ export default function QuotesPage() {
                 type="number"
                 min="0.01"
                 step="0.01"
+                title="Cantidad"
                 value={line.quantity}
                 onChange={(e) => {
                   const next = [...lines];
@@ -208,12 +238,29 @@ export default function QuotesPage() {
                 type="number"
                 min="0"
                 step="0.01"
+                title="Precio venta"
                 value={line.unit_price}
                 onChange={(e) => {
                   const next = [...lines];
                   next[index] = {
                     ...line,
                     unit_price: Number(e.target.value) || 0,
+                  };
+                  setLines(next);
+                }}
+              />
+              <input
+                className="input"
+                type="number"
+                min="0"
+                step="0.01"
+                title="Costo"
+                value={line.cost_price}
+                onChange={(e) => {
+                  const next = [...lines];
+                  next[index] = {
+                    ...line,
+                    cost_price: Number(e.target.value) || 0,
                   };
                   setLines(next);
                 }}
@@ -233,9 +280,11 @@ export default function QuotesPage() {
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm text-[var(--muted)]">
-            Total estimado:{" "}
+            Venta {money(previewMargin.revenue)} · Costo{" "}
+            {money(previewMargin.cost)} ·{" "}
             <span className="font-semibold text-[var(--text)]">
-              {money(previewTotal)}
+              Margen {money(previewMargin.profit)} ({previewMargin.margin_percent}
+              %)
             </span>
           </div>
           <div className="flex gap-2">
@@ -250,6 +299,7 @@ export default function QuotesPage() {
                     description: "",
                     quantity: 1,
                     unit_price: 0,
+                    cost_price: 0,
                   },
                 ])
               }
@@ -333,6 +383,21 @@ export default function QuotesPage() {
                 <span>Total</span>
                 <span>{money(selected.quote.total)}</span>
               </div>
+              {selected.margin && (
+                <div className="rounded-md border border-[var(--stroke)] bg-[var(--bg-soft)] p-3 text-sm">
+                  <div className="flex justify-between">
+                    <span>Costo</span>
+                    <span>{money(selected.margin.cost)}</span>
+                  </div>
+                  <div className="flex justify-between font-semibold text-[var(--accent)]">
+                    <span>Ganancia</span>
+                    <span>
+                      {money(selected.margin.profit)} (
+                      {selected.margin.margin_percent}%)
+                    </span>
+                  </div>
+                </div>
+              )}
               <p className="text-xs text-[var(--muted)]">
                 {selected.quote.terms}
               </p>

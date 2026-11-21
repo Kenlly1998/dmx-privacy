@@ -26,6 +26,7 @@ const createSchema = z.object({
   industry: z.string().optional().default(""),
   website: z.string().optional().default(""),
   notes: z.string().optional().default(""),
+  account_type: z.enum(["customer", "supplier", "both"]).optional().default("customer"),
 });
 
 export async function POST(request: Request) {
@@ -34,14 +35,15 @@ export async function POST(request: Request) {
   const body = createSchema.safeParse(await request.json());
   if (!body.success) return badRequest(body.error.message);
   const rows = await sql<Account>(
-    `insert into accounts (org_id, name, industry, website, notes)
-     values ($1,$2,$3,$4,$5) returning *`,
+    `insert into accounts (org_id, name, industry, website, notes, account_type)
+     values ($1,$2,$3,$4,$5,$6) returning *`,
     [
       session.org.id,
       body.data.name,
       body.data.industry,
       body.data.website,
       body.data.notes,
+      body.data.account_type,
     ],
   );
   await logActivity(

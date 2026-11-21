@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AttachmentsPanel } from "@/components/AttachmentsPanel";
 import { api, formatDate } from "@/lib/client";
 import { money } from "@/lib/money";
 import {
@@ -165,6 +166,8 @@ export default function DealDetailPage() {
           </ul>
         </div>
       </div>
+
+      <AttachmentsPanel entityType="deal" entityId={deal.id} />
     </div>
   );
 }

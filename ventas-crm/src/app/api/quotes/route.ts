@@ -2,7 +2,7 @@ import { z } from "zod";
 import { sql, sqlOne } from "@/lib/db";
 import { badRequest, json } from "@/lib/api";
 import { logActivity, requireSession } from "@/lib/org";
-import { lineTotal, quoteTotals } from "@/lib/money";
+import { lineTotal, quoteMargin, quoteTotals, toNumber } from "@/lib/money";
 import type { Quote, QuoteItem } from "@/lib/types";
 
 export async function GET(request: Request) {
@@ -25,6 +25,7 @@ const itemSchema = z.object({
   description: z.string().min(1),
   quantity: z.number().positive(),
   unit_price: z.number().nonnegative(),
+  cost_price: z.number().nonnegative().optional(),
 });
 
 const createSchema = z.object({
@@ -87,22 +88,39 @@ export async function POST(request: Request) {
 
   const items: QuoteItem[] = [];
   for (const [index, item] of body.data.items.entries()) {
+    let cost = item.cost_price ?? 0;
+    if (item.product_id && item.cost_price == null) {
+      const prod = await sqlOne<{ cost_price: string }>(
+        `select cost_price::text from products where id = $1 and org_id = $2`,
+        [item.product_id, session.org.id],
+      );
+      cost = toNumber(prod?.cost_price);
+    }
     const lt = lineTotal(item.quantity, item.unit_price);
     const rows = await sql<QuoteItem>(
-      `insert into quote_items (quote_id, product_id, description, quantity, unit_price, line_total, sort_order)
-       values ($1,$2,$3,$4,$5,$6,$7) returning *`,
+      `insert into quote_items (quote_id, product_id, description, quantity, unit_price, cost_price, line_total, sort_order)
+       values ($1,$2,$3,$4,$5,$6,$7,$8) returning *`,
       [
         quote.id,
         item.product_id ?? null,
         item.description,
         item.quantity,
         item.unit_price,
+        cost,
         lt,
         index,
       ],
     );
     items.push(rows[0]);
   }
+
+  const margin = quoteMargin(
+    items.map((i) => ({
+      quantity: toNumber(i.quantity),
+      unit_price: toNumber(i.unit_price),
+      cost_price: toNumber(i.cost_price),
+    })),
+  );
 
   if (body.data.deal_id) {
     await sql(
@@ -122,5 +140,5 @@ export async function POST(request: Request) {
     "create",
     `Cotización ${quote.quote_number} creada`,
   );
-  return json({ quote, items }, 201);
+  return json({ quote, items, margin }, 201);
 }

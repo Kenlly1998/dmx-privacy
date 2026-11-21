@@ -47,4 +47,24 @@ describe("database seed", () => {
     expect(templates!.c).toBeGreaterThanOrEqual(5);
     expect(tasks!.c).toBeGreaterThanOrEqual(3);
   });
+
+  it("seeds suppliers, costs and calendar", async () => {
+    const suppliers = await sqlOne<{ c: number }>(
+      `select count(*)::int as c from accounts
+       where org_id = $1 and account_type in ('supplier','both')`,
+      [orgId],
+    );
+    const withCost = await sqlOne<{ c: number }>(
+      `select count(*)::int as c from products
+       where org_id = $1 and cost_price > 0`,
+      [orgId],
+    );
+    const events = await sqlOne<{ c: number }>(
+      `select count(*)::int as c from calendar_events where org_id = $1`,
+      [orgId],
+    );
+    expect(suppliers!.c).toBeGreaterThanOrEqual(1);
+    expect(withCost!.c).toBeGreaterThanOrEqual(5);
+    expect(events!.c).toBeGreaterThanOrEqual(1);
+  });
 });

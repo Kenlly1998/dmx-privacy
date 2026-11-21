@@ -55,6 +55,7 @@ export type Account = {
   industry: string;
   website: string;
   notes: string;
+  account_type?: string;
 };
 
 export type Product = {
@@ -64,6 +65,11 @@ export type Product = {
   name: string;
   description: string;
   unit_price: number | string;
+  cost_price?: number | string;
+  brand?: string;
+  supplier_account_id?: string | null;
+  supplier_name?: string | null;
+  tax_affect?: string;
   unit: string;
   category: string;
   active: boolean;
@@ -117,8 +123,48 @@ export type QuoteItem = {
   description: string;
   quantity: number | string;
   unit_price: number | string;
+  cost_price?: number | string;
   line_total: number | string;
   sort_order: number;
+};
+
+export type CalendarEvent = {
+  id: string;
+  org_id: string;
+  title: string;
+  event_type: string;
+  starts_at: string;
+  ends_at: string | null;
+  location: string;
+  deal_id: string | null;
+  project_id: string | null;
+  contact_id: string | null;
+  notes: string;
+  deal_title?: string | null;
+  contact_name?: string | null;
+};
+
+export type Invoice = {
+  id: string;
+  org_id: string;
+  deal_id: string | null;
+  quote_id: string | null;
+  contact_id: string | null;
+  doc_type: string;
+  series: string;
+  number: string;
+  currency: string;
+  subtotal: number | string;
+  igv: number | string;
+  total: number | string;
+  customer_doc_type: string;
+  customer_doc_number: string;
+  customer_name: string;
+  status: string;
+  provider: string;
+  issued_at: string | null;
+  created_at: string;
+  deal_title?: string | null;
 };
 
 export type Payment = {

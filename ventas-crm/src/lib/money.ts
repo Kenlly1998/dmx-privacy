@@ -37,3 +37,42 @@ export function quoteTotals(
   const total = Math.round((subtotal + tax_amount) * 100) / 100;
   return { subtotal, tax_amount, total };
 }
+
+/** Margen unitario: venta - costo */
+export function unitMargin(salePrice: number, costPrice: number): number {
+  return Math.round((toNumber(salePrice) - toNumber(costPrice)) * 100) / 100;
+}
+
+/** % margen sobre venta: (venta - costo) / venta * 100 */
+export function marginPercent(salePrice: number, costPrice: number): number {
+  const sale = toNumber(salePrice);
+  if (sale <= 0) return 0;
+  return Math.round(((sale - toNumber(costPrice)) / sale) * 1000) / 10;
+}
+
+/** % markup sobre costo: (venta - costo) / costo * 100 */
+export function markupPercent(salePrice: number, costPrice: number): number {
+  const cost = toNumber(costPrice);
+  if (cost <= 0) return 0;
+  return Math.round(((toNumber(salePrice) - cost) / cost) * 1000) / 10;
+}
+
+export function quoteMargin(
+  items: { quantity: number; unit_price: number; cost_price?: number }[],
+) {
+  const revenue = items.reduce(
+    (s, i) => s + lineTotal(i.quantity, i.unit_price),
+    0,
+  );
+  const cost = items.reduce(
+    (s, i) => s + lineTotal(i.quantity, toNumber(i.cost_price)),
+    0,
+  );
+  const profit = Math.round((revenue - cost) * 100) / 100;
+  return {
+    revenue: Math.round(revenue * 100) / 100,
+    cost: Math.round(cost * 100) / 100,
+    profit,
+    margin_percent: revenue > 0 ? Math.round((profit / revenue) * 1000) / 10 : 0,
+  };
+}

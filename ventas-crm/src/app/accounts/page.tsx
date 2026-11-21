@@ -21,6 +21,7 @@ export default function AccountsPage() {
     industry: "",
     website: "",
     notes: "",
+    account_type: "customer",
   });
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +40,7 @@ export default function AccountsPage() {
       method: "POST",
       body: JSON.stringify(form),
     });
-    setForm({ name: "", industry: "", website: "", notes: "" });
+    setForm({ name: "", industry: "", website: "", notes: "", account_type: "customer" });
     await load();
   }
 
@@ -48,7 +49,7 @@ export default function AccountsPage() {
       <header>
         <h1 className="font-display text-3xl">Empresas</h1>
         <p className="text-[var(--muted)]">
-          Cuentas tipo Salesforce/HubSpot: empresa → contactos → deals.
+          Clientes y proveedores (reventa). Tipo: customer / supplier / both.
         </p>
       </header>
 
@@ -61,6 +62,18 @@ export default function AccountsPage() {
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
+        </div>
+        <div>
+          <label className="label">Tipo</label>
+          <select
+            className="select"
+            value={form.account_type}
+            onChange={(e) => setForm({ ...form, account_type: e.target.value })}
+          >
+            <option value="customer">Cliente</option>
+            <option value="supplier">Proveedor</option>
+            <option value="both">Ambos</option>
+          </select>
         </div>
         <div>
           <label className="label">Industria</label>
@@ -98,7 +111,10 @@ export default function AccountsPage() {
       <div className="grid gap-3 md:grid-cols-2">
         {accounts.map((a) => (
           <Link key={a.id} href={`/accounts/${a.id}`} className="panel block p-4">
-            <div className="font-medium">{a.name}</div>
+            <div className="flex items-center gap-2">
+              <div className="font-medium">{a.name}</div>
+              <span className="badge">{(a as { account_type?: string }).account_type || "customer"}</span>
+            </div>
             <div className="text-xs text-[var(--muted)]">
               {a.industry || "Sin industria"} · {a.contacts_count} contactos ·{" "}
               {a.deals_count} deals

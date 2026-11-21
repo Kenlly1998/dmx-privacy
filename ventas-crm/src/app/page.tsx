@@ -19,9 +19,15 @@ type Dashboard = {
     draftQuotes: number;
     wonAmount: number;
     openInbox: number;
+    quoteProfit?: number;
+    quoteMarginPercent?: number;
   };
   pipeline: { stage: string; count: number; amount: string }[];
   activity: { id: string; summary: string; created_at: string; action: string }[];
+  myWeek?: {
+    tasks: { id: string; title: string; due_at: string | null; priority: string }[];
+    events: { id: string; title: string; event_type: string; starts_at: string }[];
+  };
 };
 
 export default function HomePage() {
@@ -71,12 +77,17 @@ export default function HomePage() {
         </div>
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {[
           ["Pipeline abierto", money(data.kpis.pipelineValue, currency), `${data.kpis.openDeals} deals`],
           ["Cobrado", money(data.kpis.paymentsTotal, currency), `${data.kpis.paymentsCount} pagos`],
           ["Cotizaciones", String(data.kpis.openQuotes), `${data.kpis.draftQuotes} borradores`],
           ["Inbox abierto", String(data.kpis.openInbox), "WhatsApp / Instagram"],
+          [
+            "Margen cotizado",
+            money(data.kpis.quoteProfit ?? 0, currency),
+            `${data.kpis.quoteMarginPercent ?? 0}% sobre venta`,
+          ],
         ].map(([label, value, hint]) => (
           <div key={label} className="panel p-4">
             <div className="text-xs uppercase tracking-wide text-[var(--muted)]">
@@ -136,6 +147,44 @@ export default function HomePage() {
             ))}
             {!data.activity.length && (
               <li className="text-sm text-[var(--muted)]">Sin actividad aún.</li>
+            )}
+          </ul>
+        </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="panel p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-display text-xl">Mi semana — tareas</h2>
+            <Link href="/tasks" className="text-sm text-[var(--accent)]">Ver</Link>
+          </div>
+          <ul className="space-y-2">
+            {(data.myWeek?.tasks ?? []).map((t) => (
+              <li key={t.id} className="flex justify-between gap-2 text-sm">
+                <span>{t.title}</span>
+                <span className="badge">{t.priority}</span>
+              </li>
+            ))}
+            {!data.myWeek?.tasks?.length && (
+              <li className="text-sm text-[var(--muted)]">Sin tareas próximas.</li>
+            )}
+          </ul>
+        </div>
+        <div className="panel p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-display text-xl">Mi semana — agenda</h2>
+            <Link href="/calendar" className="text-sm text-[var(--accent)]">Ver</Link>
+          </div>
+          <ul className="space-y-2">
+            {(data.myWeek?.events ?? []).map((e) => (
+              <li key={e.id} className="text-sm">
+                <span className="badge">{e.event_type}</span>{" "}
+                {e.title}
+                <div className="text-xs text-[var(--muted)]">{formatDate(e.starts_at)}</div>
+              </li>
+            ))}
+            {!data.myWeek?.events?.length && (
+              <li className="text-sm text-[var(--muted)]">Sin eventos próximos.</li>
             )}
           </ul>
         </div>

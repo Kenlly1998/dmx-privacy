@@ -18,28 +18,49 @@ export async function ensureSeedData(orgId: string): Promise<void> {
     return;
   }
 
-  const products = [
-    ["CM-PRO", "CueMark Pro", "Software de cues y marcadores para shows en vivo", 299, "licencia", "software"],
-    ["CM-TEAM", "CueMark Team", "Licencia de equipo CueMark (5 operadores)", 799, "licencia", "software"],
-    ["LW-RENT-DAY", "LED Wall — renta día", "Renta de panel LED por día (paquete base)", 450, "día", "renta"],
-    ["LW-RENT-EVENT", "LED Wall — evento", "Paquete evento LED Wall + soporte técnico", 1800, "evento", "renta"],
-    ["LW-INSTALL", "Instalación LED Wall", "Montaje, cableado y configuración en venue", 650, "servicio", "servicio"],
-    ["DMX-CONSULT", "Consultoría DMX", "Diseño de red DMX / Art-Net y programación", 120, "hora", "servicio"],
-    ["AV-TECH", "Técnico de show", "Operador técnico en sitio", 95, "hora", "servicio"],
-    ["PKG-LAUNCH", "Paquete lanzamiento", "LED + operador + soporte el día del evento", 2500, "paquete", "paquete"],
-  ] as const;
+  const supplier = await sqlOne<{ id: string }>(
+    `insert into accounts (org_id, name, industry, website, notes, account_type)
+     values ($1, 'Distribuidora Luces del Sur', 'Proveedor iluminación', '',
+             'Proveedor de cabezas móviles y LED', 'supplier')
+     returning id`,
+    [orgId],
+  );
 
-  for (const [sku, name, description, price, unit, category] of products) {
+  const products: [
+    string,
+    string,
+    string,
+    number,
+    number,
+    string,
+    string,
+    string,
+    string | null,
+  ][] = [
+    ["CM-PRO", "CueMark Pro", "Software de cues y marcadores para shows en vivo", 299, 120, "licencia", "software", "CueMark", null],
+    ["CM-TEAM", "CueMark Team", "Licencia de equipo CueMark (5 operadores)", 799, 350, "licencia", "software", "CueMark", null],
+    ["LW-RENT-DAY", "LED Wall — renta día", "Renta de panel LED por día (paquete base)", 450, 180, "día", "renta", "LEDPro", supplier?.id ?? null],
+    ["LW-RENT-EVENT", "LED Wall — evento", "Paquete evento LED Wall + soporte técnico", 1800, 900, "evento", "renta", "LEDPro", supplier?.id ?? null],
+    ["LW-INSTALL", "Instalación LED Wall", "Montaje, cableado y configuración en venue", 650, 200, "servicio", "servicio", "Propio", null],
+    ["DMX-CONSULT", "Consultoría DMX", "Diseño de red DMX / Art-Net y programación", 120, 40, "hora", "servicio", "Propio", null],
+    ["AV-TECH", "Técnico de show", "Operador técnico en sitio", 95, 35, "hora", "servicio", "Propio", null],
+    ["PKG-LAUNCH", "Paquete lanzamiento", "LED + operador + soporte el día del evento", 2500, 1200, "paquete", "paquete", "Propio", null],
+    ["CHV-SPOT300", "Spot 300 (reventa)", "Cabeza móvil Spot 300 — reventa", 1890, 1350, "unidad", "reventa", "Chauvet", supplier?.id ?? null],
+    ["CAP-DMX", "Capacitación DMX", "Taller práctico de control DMX / Art-Net", 180, 40, "persona", "capacitacion", "Propio", null],
+  ];
+
+  for (const [sku, name, description, price, cost, unit, category, brand, supplierId] of products) {
     await sql(
-      `insert into products (org_id, sku, name, description, unit_price, unit, category)
-       values ($1, $2, $3, $4, $5, $6, $7)`,
-      [orgId, sku, name, description, price, unit, category],
+      `insert into products (org_id, sku, name, description, unit_price, cost_price, unit, category, brand, supplier_account_id)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [orgId, sku, name, description, price, cost, unit, category, brand, supplierId],
     );
   }
 
   const account = await sqlOne<{ id: string }>(
-    `insert into accounts (org_id, name, industry, website, notes)
-     values ($1, 'Producciones Andes', 'Eventos', 'https://example.com', 'Cliente recurrente de shows corporativos')
+    `insert into accounts (org_id, name, industry, website, notes, account_type)
+     values ($1, 'Producciones Andes', 'Eventos', 'https://example.com',
+             'Cliente recurrente de shows corporativos', 'customer')
      returning id`,
     [orgId],
   );
@@ -213,6 +234,24 @@ export async function ensureSeedData(orgId: string): Promise<void> {
     [orgId],
   );
 
+  await sql(
+    `insert into calendar_events (org_id, title, event_type, starts_at, ends_at, location, deal_id, notes)
+     select $1, 'Capacitación DMX — Club Norte', 'training',
+            (current_date + 3)::timestamptz + interval '10 hours',
+            (current_date + 3)::timestamptz + interval '13 hours',
+            'Sala técnica', id, 'Cupos confirmados'
+     from deals where org_id = $1 and title ilike '%CueMark%' limit 1`,
+    [orgId],
+  );
+  await sql(
+    `insert into calendar_events (org_id, title, event_type, starts_at, location, deal_id, notes)
+     select $1, 'Montaje LED — Gala corporativa', 'job',
+            (current_date + 28)::timestamptz + interval '8 hours',
+            'Hotel Costa, Lima', id, 'Llegar 2h antes'
+     from deals where org_id = $1 and title ilike '%LED%' limit 1`,
+    [orgId],
+  );
+
   await ensureLeaderExtras(orgId);
   seededOrgs.add(orgId);
 }
@@ -280,5 +319,21 @@ async function ensureLeaderExtras(orgId: string): Promise<void> {
         [orgId, deal.id, deal.contact_id],
       );
     }
+  }
+
+  const events = await sqlOne<{ c: number }>(
+    `select count(*)::int as c from calendar_events where org_id = $1`,
+    [orgId],
+  );
+  if ((events?.c ?? 0) === 0) {
+    await sql(
+      `insert into calendar_events (org_id, title, event_type, starts_at, location, notes)
+       values
+       ($1, 'Capacitación DMX (demo)', 'training',
+        (current_date + 3)::timestamptz + interval '10 hours', 'Sala técnica', 'Demo agenda'),
+       ($1, 'Montaje LED (demo)', 'job',
+        (current_date + 7)::timestamptz + interval '8 hours', 'Venue', 'Demo trabajo')`,
+      [orgId],
+    );
   }
 }
