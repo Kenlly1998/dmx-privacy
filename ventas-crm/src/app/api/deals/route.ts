@@ -7,6 +7,10 @@ import { DEAL_STAGES, STAGE_PROBABILITY, type Deal } from "@/lib/types";
 export async function GET(request: Request) {
   const session = await requireSession(request);
   if (session instanceof Response) return session;
+  const { searchParams } = new URL(request.url);
+  const q = searchParams.get("q")?.trim() ?? "";
+  const source = searchParams.get("source")?.trim() ?? "";
+  const stage = searchParams.get("stage")?.trim() ?? "";
 
   const deals = await sql<Deal>(
     `select d.*, c.full_name as contact_name, a.name as account_name
@@ -14,8 +18,11 @@ export async function GET(request: Request) {
      left join contacts c on c.id = d.contact_id
      left join accounts a on a.id = d.account_id
      where d.org_id = $1
+       and ($2 = '' or d.title ilike '%' || $2 || '%' or coalesce(c.full_name,'') ilike '%' || $2 || '%')
+       and ($3 = '' or d.source = $3)
+       and ($4 = '' or d.stage = $4)
      order by d.updated_at desc`,
-    [session.org.id],
+    [session.org.id, q, source, stage],
   );
   return json({ deals, stages: DEAL_STAGES });
 }

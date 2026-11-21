@@ -4,10 +4,14 @@ CRM multiplataforma (web + PWA para Android / iOS / iPad) para pipeline de venta
 
 ## Qué incluye
 
-- **Pipeline** tipo Pipedrive (Lead → … → Ganado/Perdido)
-- **Contactos** y catálogo (CueMark, LED Wall, servicios)
-- **Cotizaciones** versionadas con ítems y impresión/PDF
-- **Pagos** (anticipo, Yape/Plin/transferencia, etc.)
+- **Pipeline** tipo Pipedrive (Lead → … → Ganado/Perdido) con filtros
+- **Fichas** de deal/contacto con **timeline** (estilo HubSpot)
+- **Empresas (Accounts)** → contactos → deals
+- **Tareas** de seguimiento con prioridad y vencimiento
+- **Búsqueda global** de contactos, deals y cotizaciones
+- **Reportes**: embudo, win rate, pipeline ponderado, por fuente
+- **Plantillas** de mensajes en Inbox (estilo Kommo)
+- **Cotizaciones** versionadas + **pagos** + catálogo
 - **Inbox** WhatsApp / Instagram (webhooks + demo)
 - **Grok** como copiloto con aprobación humana
 - **Proyectos** post-venta al ganar un deal

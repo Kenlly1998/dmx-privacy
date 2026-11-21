@@ -34,4 +34,17 @@ describe("database seed", () => {
     expect(Number(quote!.total)).toBeGreaterThan(0);
     expect(Number(quote!.subtotal)).toBe(Number(quote!.total));
   });
+
+  it("seeds leader extras (templates + tasks)", async () => {
+    const templates = await sqlOne<{ c: number }>(
+      `select count(*)::int as c from message_templates where org_id = $1`,
+      [orgId],
+    );
+    const tasks = await sqlOne<{ c: number }>(
+      `select count(*)::int as c from tasks where org_id = $1`,
+      [orgId],
+    );
+    expect(templates!.c).toBeGreaterThanOrEqual(5);
+    expect(tasks!.c).toBeGreaterThanOrEqual(3);
+  });
 });

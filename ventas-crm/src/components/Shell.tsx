@@ -2,14 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { GlobalSearch } from "./GlobalSearch";
 
 const NAV = [
   { href: "/", label: "Inicio" },
   { href: "/deals", label: "Pipeline" },
+  { href: "/tasks", label: "Tareas" },
   { href: "/contacts", label: "Contactos" },
+  { href: "/accounts", label: "Empresas" },
   { href: "/quotes", label: "Cotizaciones" },
   { href: "/payments", label: "Pagos" },
   { href: "/inbox", label: "Inbox" },
+  { href: "/reports", label: "Reportes" },
   { href: "/products", label: "Catálogo" },
   { href: "/projects", label: "Proyectos" },
   { href: "/ai", label: "Grok" },
@@ -33,7 +37,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             const active =
               item.href === "/"
                 ? pathname === "/"
-                : pathname.startsWith(item.href);
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
                 key={item.href}
@@ -50,7 +54,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
       </aside>
-      <main className="px-4 py-5 md:px-8 md:py-7">{children}</main>
+      <div>
+        <div className="sticky top-0 z-10 border-b border-[var(--stroke)] bg-[color-mix(in_srgb,var(--bg)_88%,transparent)] px-4 py-3 backdrop-blur md:px-8">
+          <GlobalSearch />
+        </div>
+        <main className="px-4 py-5 md:px-8 md:py-7">{children}</main>
+      </div>
     </div>
   );
 }

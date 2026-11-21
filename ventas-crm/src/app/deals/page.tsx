@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/client";
 import { money, toNumber } from "@/lib/money";
@@ -14,11 +15,18 @@ export default function DealsPage() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("0");
+  const [filterQ, setFilterQ] = useState("");
+  const [filterSource, setFilterSource] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function load() {
-    const data = await api<{ deals: Deal[] }>("/api/deals");
+  async function load(q = filterQ, source = filterSource) {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (source) params.set("source", source);
+    const data = await api<{ deals: Deal[] }>(
+      `/api/deals?${params.toString()}`,
+    );
     setDeals(data.deals);
   }
 
@@ -86,6 +94,42 @@ export default function DealsPage() {
         </div>
       </header>
 
+      <div className="panel grid gap-3 p-4 md:grid-cols-[1fr_180px_auto]">
+        <div>
+          <label className="label">Filtrar pipeline</label>
+          <input
+            className="input"
+            value={filterQ}
+            onChange={(e) => setFilterQ(e.target.value)}
+            placeholder="Buscar título o contacto"
+          />
+        </div>
+        <div>
+          <label className="label">Fuente</label>
+          <select
+            className="select"
+            value={filterSource}
+            onChange={(e) => setFilterSource(e.target.value)}
+          >
+            <option value="">Todas</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="instagram">Instagram</option>
+            <option value="manual">Manual</option>
+            <option value="referido">Referido</option>
+            <option value="web">Web</option>
+          </select>
+        </div>
+        <div className="flex items-end">
+          <button
+            type="button"
+            className="btn btn-ghost w-full"
+            onClick={() => load().catch((e: Error) => setError(e.message))}
+          >
+            Aplicar
+          </button>
+        </div>
+      </div>
+
       <form onSubmit={createDeal} className="panel grid gap-3 p-4 md:grid-cols-[1fr_160px_auto]">
         <div>
           <label className="label">Nuevo deal</label>
@@ -127,11 +171,14 @@ export default function DealsPage() {
             <div className="space-y-2">
               {byStage[stage].map((deal) => (
                 <div key={deal.id} className="rounded-xl bg-[var(--bg)] p-3">
-                  <div className="text-sm font-medium leading-snug">
+                  <Link
+                    href={`/deals/${deal.id}`}
+                    className="text-sm font-medium leading-snug text-[var(--accent)]"
+                  >
                     {deal.title}
-                  </div>
+                  </Link>
                   <div className="mt-1 text-xs text-[var(--muted)]">
-                    {deal.contact_name || "Sin contacto"}
+                    {deal.contact_name || "Sin contacto"} · {deal.source}
                   </div>
                   <div className="mt-2 text-sm font-semibold text-[var(--accent)]">
                     {money(deal.amount)}

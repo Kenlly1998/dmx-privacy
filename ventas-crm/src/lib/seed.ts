@@ -3,13 +3,17 @@ import { sql, sqlOne } from "./db";
 let seededOrgs = new Set<string>();
 
 export async function ensureSeedData(orgId: string): Promise<void> {
-  if (seededOrgs.has(orgId)) return;
+  if (seededOrgs.has(orgId)) {
+    await ensureLeaderExtras(orgId);
+    return;
+  }
 
   const existing = await sqlOne<{ c: number }>(
     `select count(*)::int as c from products where org_id = $1`,
     [orgId],
   );
   if ((existing?.c ?? 0) > 0) {
+    await ensureLeaderExtras(orgId);
     seededOrgs.add(orgId);
     return;
   }
@@ -209,5 +213,72 @@ export async function ensureSeedData(orgId: string): Promise<void> {
     [orgId],
   );
 
+  await ensureLeaderExtras(orgId);
   seededOrgs.add(orgId);
+}
+
+/** Plantillas + tareas de seguimiento (estilo HubSpot / Kommo) */
+async function ensureLeaderExtras(orgId: string): Promise<void> {
+  const templates = await sqlOne<{ c: number }>(
+    `select count(*)::int as c from message_templates where org_id = $1`,
+    [orgId],
+  );
+  if ((templates?.c ?? 0) === 0) {
+    const rows: [string, string, string][] = [
+      [
+        "Saludo inicial WA",
+        "whatsapp",
+        "Hola {{nombre}}, gracias por escribirnos. ¿Para qué fecha y ciudad necesitas el servicio?",
+      ],
+      [
+        "Envío de cotización",
+        "whatsapp",
+        "Hola {{nombre}}, te comparto la cotización {{cotizacion}}. Queda válida 15 días. ¿La revisamos juntos?",
+      ],
+      [
+        "Seguimiento post-cotización",
+        "whatsapp",
+        "Hola {{nombre}}, ¿pudiste revisar la propuesta? Puedo ajustar alcance o fechas si cambió algo del evento.",
+      ],
+      [
+        "Recordatorio de anticipo",
+        "whatsapp",
+        "Hola {{nombre}}, para reservar equipo/fecha necesitamos el anticipo del 40%. ¿Te paso los datos de pago?",
+      ],
+      [
+        "Respuesta IG demo",
+        "instagram",
+        "¡Hola! Gracias por el DM. Te cuento opciones y precios según tu fecha. ¿Es show, corporativo o instalación?",
+      ],
+    ];
+    for (const [name, channel, body] of rows) {
+      await sql(
+        `insert into message_templates (org_id, name, channel, body)
+         values ($1, $2, $3, $4)`,
+        [orgId, name, channel, body],
+      );
+    }
+  }
+
+  const openTasks = await sqlOne<{ c: number }>(
+    `select count(*)::int as c from tasks where org_id = $1`,
+    [orgId],
+  );
+  if ((openTasks?.c ?? 0) === 0) {
+    const deal = await sqlOne<{ id: string; contact_id: string | null }>(
+      `select id, contact_id from deals where org_id = $1 and stage not in ('won','lost')
+       order by updated_at desc limit 1`,
+      [orgId],
+    );
+    if (deal) {
+      await sql(
+        `insert into tasks (org_id, title, due_at, status, priority, deal_id, contact_id, notes)
+         values
+         ($1, 'Llamar para confirmar alcance', now() + interval '1 day', 'open', 'high', $2, $3, 'Seguimiento estilo Pipedrive'),
+         ($1, 'Enviar cotización actualizada', now() + interval '2 day', 'open', 'normal', $2, $3, ''),
+         ($1, 'Cobrar anticipo si acepta', now() + interval '5 day', 'open', 'normal', $2, $3, '')`,
+        [orgId, deal.id, deal.contact_id],
+      );
+    }
+  }
 }

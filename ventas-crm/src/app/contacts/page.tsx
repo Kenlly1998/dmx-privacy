@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import type { Contact } from "@/lib/types";
@@ -143,7 +144,14 @@ export default function ContactsPage() {
           <tbody>
             {contacts.map((c) => (
               <tr key={c.id} className="border-t border-[var(--stroke)]">
-                <td className="px-4 py-3 font-medium">{c.full_name}</td>
+                <td className="px-4 py-3 font-medium">
+                  <Link
+                    href={`/contacts/${c.id}`}
+                    className="text-[var(--accent)]"
+                  >
+                    {c.full_name}
+                  </Link>
+                </td>
                 <td className="px-4 py-3 text-[var(--muted)]">
                   {c.account_name || "—"}
                 </td>

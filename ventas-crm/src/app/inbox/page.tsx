@@ -4,18 +4,23 @@ import { useEffect, useState } from "react";
 import { api, formatDate } from "@/lib/client";
 import type { Conversation, Message } from "@/lib/types";
 
+type Template = { id: string; name: string; channel: string; body: string };
+
 export default function InboxPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
-    const data = await api<{ conversations: Conversation[] }>(
-      "/api/conversations",
-    );
+    const [data, tpl] = await Promise.all([
+      api<{ conversations: Conversation[] }>("/api/conversations"),
+      api<{ templates: Template[] }>("/api/templates"),
+    ]);
     setConversations(data.conversations);
+    setTemplates(tpl.templates);
     if (!activeId && data.conversations[0]) {
       await openThread(data.conversations[0].id);
     }
@@ -121,21 +126,47 @@ export default function InboxPage() {
               </div>
             ))}
           </div>
-          <form
-            onSubmit={send}
-            className="flex gap-2 border-t border-[var(--stroke)] p-3"
-          >
-            <input
-              className="input"
-              placeholder="Escribe una respuesta…"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              disabled={!activeId}
-            />
-            <button className="btn btn-primary" disabled={!activeId}>
-              Enviar
-            </button>
-          </form>
+          <div className="border-t border-[var(--stroke)] p-3">
+            <div className="mb-2 flex flex-wrap gap-1">
+              {templates
+                .filter(
+                  (t) =>
+                    !active ||
+                    t.channel === active.channel ||
+                    t.channel === "whatsapp",
+                )
+                .slice(0, 5)
+                .map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className="badge hover:border-[var(--accent)]"
+                    disabled={!activeId}
+                    onClick={() =>
+                      setBody(
+                        t.body
+                          .replace("{{nombre}}", active?.contact_name || "hola")
+                          .replace("{{cotizacion}}", "COT"),
+                      )
+                    }
+                  >
+                    {t.name}
+                  </button>
+                ))}
+            </div>
+            <form onSubmit={send} className="flex gap-2">
+              <input
+                className="input"
+                placeholder="Escribe una respuesta…"
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                disabled={!activeId}
+              />
+              <button className="btn btn-primary" disabled={!activeId}>
+                Enviar
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
