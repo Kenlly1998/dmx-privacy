@@ -1,0 +1,18 @@
+{
+  "name": "Ventas CRM",
+  "short_name": "VentasCRM",
+  "description": "CRM de ventas, cotizaciones y canales",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#12141a",
+  "theme_color": "#12141a",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
