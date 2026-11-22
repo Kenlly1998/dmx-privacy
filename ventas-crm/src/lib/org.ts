@@ -61,7 +61,7 @@ async function bootstrapSession(viewer: {
       `insert into organizations (name, currency, timezone)
        values ($1, 'USD', 'America/Lima')
        returning id, name, currency, timezone`,
-      ["Mi Empresa"],
+      ["KLA PRO"],
     );
     if (!org) throw new Error("No se pudo crear la organización");
     await sql(
@@ -78,6 +78,13 @@ async function bootstrapSession(viewer: {
       timezone: org.timezone,
     };
   } else {
+    if (membership.name === "Mi Empresa") {
+      await sql(`update organizations set name = $1 where id = $2`, [
+        "KLA PRO",
+        membership.org_id,
+      ]);
+      membership = { ...membership, name: "KLA PRO" };
+    }
     await ensureSeedData(membership.org_id);
   }
 

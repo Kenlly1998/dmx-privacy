@@ -1,11 +1,11 @@
 {
-  "name": "Ventas CRM",
-  "short_name": "VentasCRM",
-  "description": "CRM de ventas, cotizaciones y canales",
+  "name": "KLA PRO CRM",
+  "short_name": "KLA PRO",
+  "description": "CRM de KLA PRO: ventas, cotizaciones y canales",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#12141a",
-  "theme_color": "#12141a",
+  "background_color": "#09060a",
+  "theme_color": "#09060a",
   "lang": "es",
   "icons": [
     {

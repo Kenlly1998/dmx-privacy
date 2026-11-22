@@ -111,7 +111,7 @@ export default function HomePage() {
             Hola, {data.viewer.split(" ")[0]}
           </h1>
           <p className="mt-1 text-[var(--muted)]">
-            {data.orgName} · estilo Inventario Rental
+            {data.orgName} · CRM comercial
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -126,14 +126,14 @@ export default function HomePage() {
 
       <div className="panel flex flex-wrap items-center gap-3 p-4">
         <div className="grid h-12 w-12 place-items-center rounded-xl bg-[var(--accent-soft)] text-lg font-extrabold text-[var(--accent-strong)] ring-1 ring-[rgba(255,61,110,0.35)]">
-          IR
+          KP
         </div>
         <div className="min-w-0 flex-1">
           <div className="truncate text-base font-extrabold tracking-tight">
             {data.orgName}
           </div>
           <div className="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--accent-2)]">
-            Iluminación · ventas + inventario
+            KLA PRO · ventas + inventario
           </div>
         </div>
         <Link href="/settings" className="btn btn-soft">

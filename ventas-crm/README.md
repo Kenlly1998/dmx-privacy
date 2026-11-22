@@ -1,6 +1,6 @@
-# Ventas CRM
+# KLA PRO CRM
 
-CRM multiplataforma (web + PWA para Android / iOS / iPad) para pipeline de ventas, cotizaciones, pagos, inbox de canales y copiloto Grok.
+CRM multiplataforma de **KLA PRO** (web + PWA para Android / iOS / iPad): pipeline de ventas, cotizaciones, pagos, inbox de canales y copiloto Grok.
 
 ## Qué incluye
 

@@ -30,12 +30,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]">
       <aside className="border-b border-[var(--stroke)] bg-[color-mix(in_srgb,var(--bg-elevated)_92%,transparent)] backdrop-blur md:border-b-0 md:border-r md:min-h-screen">
         <div className="px-5 py-5">
-          <div className="eyebrow">Inventario rental</div>
+          <div className="eyebrow">KLA PRO</div>
           <div className="font-display mt-2 text-2xl tracking-tight">
-            Ventas CRM
+            CRM
           </div>
           <p className="mt-1 text-xs text-[var(--muted)]">
-            Equipos · eventos · cobranza
+            Ventas · equipos · cobranza
           </p>
         </div>
         <nav className="flex gap-1 overflow-x-auto px-3 pb-4 md:flex-col md:overflow-visible">

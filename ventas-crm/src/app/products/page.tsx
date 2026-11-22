@@ -104,8 +104,7 @@ export default function ProductsPage() {
           <div className="eyebrow">Equipos</div>
           <h1 className="font-display mt-1 text-3xl md:text-4xl">Inventario</h1>
           <p className="mt-1 max-w-2xl text-[var(--muted)]">
-            Misma lógica visual que Inventario Rental: SKU, marca, costo, venta y
-            margen.
+            Catálogo KLA PRO: SKU, marca, costo, venta y margen.
           </p>
         </div>
         <div className="text-sm text-[var(--muted)]">

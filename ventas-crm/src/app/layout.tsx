@@ -3,13 +3,14 @@ import { Shell } from "@/components/Shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Ventas CRM",
+  title: "KLA PRO CRM",
   description:
-    "CRM multiplataforma para pipeline, cotizaciones, pagos y canales (WhatsApp, Instagram, Grok).",
+    "CRM de KLA PRO: pipeline, cotizaciones, pagos y canales (WhatsApp, Instagram, Grok).",
+  applicationName: "KLAPRO",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Ventas CRM",
+    title: "KLA PRO CRM",
     statusBarStyle: "black-translucent",
   },
 };
