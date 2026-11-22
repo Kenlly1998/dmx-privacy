@@ -35,10 +35,11 @@ export function GlobalSearch() {
   }, [q]);
 
   return (
-    <div className="relative w-full max-w-md">
+    <div className="relative w-full max-w-xl">
       <input
         className="input"
-        placeholder="Buscar contactos, deals, cotizaciones…"
+
+        placeholder="Buscar inventario, contactos, deals, cotizaciones…"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => results.length && setOpen(true)}

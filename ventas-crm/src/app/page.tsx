@@ -58,21 +58,23 @@ export default function HomePage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-sm text-[var(--muted)]">{data.orgName}</p>
+          <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
+            {data.orgName}
+          </p>
           <h1 className="font-display text-3xl md:text-4xl">
             Hola, {data.viewer.split(" ")[0]}
           </h1>
           <p className="mt-1 max-w-xl text-[var(--muted)]">
-            Pipeline activo, cobranza y canales en un solo lugar. Listo para
-            cotizar y cerrar.
+            Inventario con margen, agenda de trabajos y ventas en un solo
+            flujo.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/quotes" className="btn btn-primary">
-            Nueva cotización
+          <Link href="/products" className="btn btn-primary">
+            Ver inventario
           </Link>
-          <Link href="/deals" className="btn btn-ghost">
-            Ver pipeline
+          <Link href="/quotes" className="btn btn-ghost">
+            Nueva cotización
           </Link>
         </div>
       </header>
