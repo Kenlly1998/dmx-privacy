@@ -221,7 +221,7 @@ export default function ProductsPage() {
       {error && <div className="text-[var(--danger)]">{error}</div>}
 
       <div className="panel overflow-hidden">
-        <div className="flex flex-wrap items-center gap-3 border-b border-[var(--stroke)] bg-[#f7fafc] px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3 border-b border-[var(--stroke)] bg-[var(--bg-soft)] px-4 py-3">
           <input
             className="input max-w-sm"
             placeholder="Buscar SKU, marca, proveedor…"
@@ -272,7 +272,7 @@ export default function ProductsPage() {
                     {p.supplier_name || "—"}
                   </td>
                   <td>{money(p.cost_price)}</td>
-                  <td className="font-semibold text-[var(--accent)]">
+                  <td className="font-semibold text-[var(--accent-strong)]">
                     {money(p.unit_price)}
                   </td>
                   <td>
