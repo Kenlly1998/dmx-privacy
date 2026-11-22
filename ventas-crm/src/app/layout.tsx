@@ -10,12 +10,12 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Ventas CRM",
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b4f6c",
+  themeColor: "#09060a",
   width: "device-width",
   initialScale: 1,
 };

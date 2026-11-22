@@ -101,13 +101,11 @@ export default function ProductsPage() {
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
-            Administra tus artículos
-          </p>
-          <h1 className="font-display text-3xl md:text-4xl">Inventario</h1>
+          <div className="eyebrow">Equipos</div>
+          <h1 className="font-display mt-1 text-3xl md:text-4xl">Inventario</h1>
           <p className="mt-1 max-w-2xl text-[var(--muted)]">
-            Categorías, marcas, costo, venta y margen — listo para rentar o
-            revender (estilo Inventario Rental).
+            Misma lógica visual que Inventario Rental: SKU, marca, costo, venta y
+            margen.
           </p>
         </div>
         <div className="text-sm text-[var(--muted)]">
@@ -215,7 +213,7 @@ export default function ProductsPage() {
         </div>
         <div className="md:col-span-3">
           <button className="btn btn-primary" type="submit">
-            Guardar artículo
+            Nuevo equipo
           </button>
         </div>
       </form>
