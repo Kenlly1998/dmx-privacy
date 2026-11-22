@@ -47,23 +47,23 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-screen md:grid md:grid-cols-[232px_1fr]">
-      <aside className="border-b border-[var(--stroke)] bg-[var(--bg-elevated)] md:border-b-0 md:border-r md:min-h-screen">
+    <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]">
+      <aside className="bg-[var(--header)] text-white md:min-h-screen">
         <div className="px-5 py-5">
-          <div className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
-            Bodega + ventas
+          <div className="text-[0.65rem] font-bold uppercase tracking-[0.16em] text-[#9fd3ea]">
+            Inventario rental
           </div>
-          <div className="font-display mt-1 text-2xl tracking-tight text-[var(--text)]">
+          <div className="font-display mt-1 text-2xl tracking-tight">
             Ventas CRM
           </div>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            Inventario · cotiza · cobra
+          <p className="mt-1 text-xs text-[#b7d7e8]">
+            Contratos · stock · cobranza
           </p>
         </div>
         <nav className="space-y-4 px-3 pb-5">
           {NAV_GROUPS.map((group) => (
             <div key={group.title}>
-              <div className="mb-1 px-3 text-[0.65rem] font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">
+              <div className="mb-1 px-3 text-[0.62rem] font-bold uppercase tracking-[0.14em] text-[#7eb6ce]">
                 {group.title}
               </div>
               <div className="flex gap-1 overflow-x-auto md:flex-col md:overflow-visible">
@@ -77,10 +77,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm transition ${
+                      className={`whitespace-nowrap rounded-md px-3 py-2 text-sm transition ${
                         active
-                          ? "bg-[color-mix(in_srgb,var(--accent)_12%,white)] font-semibold text-[var(--accent)]"
-                          : "text-[var(--muted)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+                          ? "bg-white/15 font-semibold text-white"
+                          : "text-[#c5dce8] hover:bg-white/10 hover:text-white"
                       }`}
                     >
                       {item.label}
@@ -93,7 +93,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </nav>
       </aside>
       <div>
-        <div className="sticky top-0 z-10 border-b border-[var(--stroke)] bg-[color-mix(in_srgb,var(--bg-elevated)_92%,transparent)] px-4 py-3 backdrop-blur md:px-8">
+        <div className="sticky top-0 z-10 border-b border-[var(--stroke)] bg-white/95 px-4 py-3 backdrop-blur md:px-8">
           <GlobalSearch />
         </div>
         <main className="animate-in px-4 py-5 md:px-8 md:py-7">{children}</main>

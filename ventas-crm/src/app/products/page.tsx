@@ -102,12 +102,12 @@ export default function ProductsPage() {
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
-            Bodega
+            Administra tus artículos
           </p>
           <h1 className="font-display text-3xl md:text-4xl">Inventario</h1>
           <p className="mt-1 max-w-2xl text-[var(--muted)]">
-            SKU, proveedor, costo y margen en una sola tabla — lista para
-            cotizar reventa, renta y capacitaciones.
+            Categorías, marcas, costo, venta y margen — listo para rentar o
+            revender (estilo Inventario Rental).
           </p>
         </div>
         <div className="text-sm text-[var(--muted)]">
@@ -215,7 +215,7 @@ export default function ProductsPage() {
         </div>
         <div className="md:col-span-3">
           <button className="btn btn-primary" type="submit">
-            Agregar al inventario
+            Guardar artículo
           </button>
         </div>
       </form>
